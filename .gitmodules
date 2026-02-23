@@ -1,0 +1,3 @@
+[submodule "ScriptUtils"]
+	path = ScriptUtils
+	url = https://github.com/cholushkin/script-utils.git
