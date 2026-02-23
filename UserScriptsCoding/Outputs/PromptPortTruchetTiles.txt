@@ -1,0 +1,1910 @@
+// --- Source Blob ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileDrawCommand.cs ---
+
+// TODO ROADMAP:
+// [x] Remove System.Drawing dependency
+// [x] Replace Image output with draw command model
+// [ ] Add Unity renderer backend
+// [ ] Support mesh/shader renderer
+// [ ] Support animation
+
+using System;
+
+namespace Truchet.Tiles
+{
+    public enum DrawCommandType
+    {
+        Rectangle,
+        Ellipse,
+        Pie
+    }
+
+    public struct TileDrawCommand
+    {
+        public DrawCommandType Type;
+
+        public float X;
+        public float Y;
+        public float Width;
+        public float Height;
+
+        public float StartAngle;   // Only for Pie
+        public float SweepAngle;   // Only for Pie
+
+        public bool IsPrimary;     // true = primary color, false = secondary
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileDrawCommand.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Palette.cs ---
+
+﻿using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+
+namespace Truchet.Tiles
+{
+
+    abstract class Palette
+    {
+
+        public static List<Palette> PaletteList { get; }
+       
+        public Brush PrimaryBrush { get; }
+        public Brush SecondaryBrush { get; }
+        public string Name { get; }
+
+        public Palette(Brush primary, Brush secondary, string name)
+        {
+            PrimaryBrush = primary;
+            SecondaryBrush = secondary;
+            Name = name;
+        }
+
+        /** used to initialize the palette list **/
+        static Palette()
+        {
+            PaletteList = new List<Palette>
+            {
+                new SolidColorPalette(0xFFFFFF, 0x000000, "Monochrome"),
+                new SolidColorPalette(0x05668D, 0xF0F3BD, "Sapphire"),
+                new SolidColorPalette(0xE63946, 0x1D3557, "Imperial"),
+                new SolidColorPalette(0x2D00F7, 0xE500A4, "Deep"),
+                new SolidColorPalette(0xFFCDB2, 0x6D6875, "Apricot"),
+                new SolidColorPalette(0x03071E, 0xFFBA08, "Xiketic"),
+                new SolidColorPalette(0x3D315B, 0xF8F991, "Canary"),
+                new SolidColorPalette(0x034732, 0xc1292e, "Meadow")
+            };
+        }
+    }
+
+    class SolidColorPalette : Palette
+    {
+
+        public SolidColorPalette(int primaryColor, int secondaryColor, string name)
+            : base(GetBrushFromRGB(primaryColor), GetBrushFromRGB(secondaryColor), name)
+        {
+
+        }
+
+        private static SolidBrush GetBrushFromRGB(int color)
+        {
+            return new SolidBrush(Color.FromArgb((255 << 24) ^ color));
+        }
+    }
+
+    class LinearGradientPalette : Palette
+    {
+        public static int GradientBrushSize = 1000;
+
+        private bool isTransformed;
+
+        public LinearGradientPalette(int primaryColor1, int primaryColor2, int secondaryColor1, int secondaryColor2, string name)
+            : base(GetGradientBrush(primaryColor1, primaryColor2), GetGradientBrush(secondaryColor1, secondaryColor2), name)
+            {
+           
+            isTransformed = false; 
+            }
+
+        private static LinearGradientBrush GetGradientBrush(int color1, int color2)
+            {
+            return new LinearGradientBrush(new Point(0, 0),
+                                           new Point(GradientBrushSize, GradientBrushSize),
+                                           Color.FromArgb((255 << 24) ^ color1),
+                                           Color.FromArgb((255 << 24) ^ color2));
+            }
+
+        public void Transform(float scale, float angle)
+        {
+            LinearGradientBrush primary, secondary;
+            primary = (LinearGradientBrush)PrimaryBrush;
+            secondary = (LinearGradientBrush)SecondaryBrush;
+            if (isTransformed) Reset();
+            primary.ScaleTransform(scale, scale);
+            primary.RotateTransform(angle);
+            secondary.ScaleTransform(scale, scale);
+            secondary.RotateTransform(angle);
+            isTransformed = true;
+        }
+        
+        public void Reset()
+        {
+            LinearGradientBrush primary, secondary;
+            primary = (LinearGradientBrush)PrimaryBrush;
+            secondary = (LinearGradientBrush)SecondaryBrush;
+            primary.ResetTransform();
+            secondary.ResetTransform();
+            isTransformed = false;
+        }
+    }
+}
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Palette.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\GenerationSettingsScriptableObject.cs ---
+
+// TODO ROADMAP:
+// [x] Introduce ScriptableObject settings
+// [x] Runtime conversion method
+// [ ] Add validation warnings
+// [ ] Add custom editor
+// [ ] Add preset variants (Random / Perlin)
+
+using UnityEngine;
+using Truchet.Tiles;
+
+[CreateAssetMenu(
+    fileName = "GenerationSettings",
+    menuName = "Truchet/Generation Settings",
+    order = 0)]
+public class GenerationSettingsScriptableObject : ScriptableObject
+{
+    [Header("Grid")]
+    public int seed = 1234;
+    public int rows = 4;
+    public int columns = 4;
+    public int levels = 3;
+
+    [Header("Noise")]
+    public bool usePerlin = true;
+    public float frequency = 0.1f;
+    public float amplitude = 1f;
+    public int octaves = 3;
+
+    public GenerationSettings ToRuntime()
+    {
+        return new GenerationSettings(
+            seed,
+            rows,
+            columns,
+            levels,
+            usePerlin,
+            frequency,
+            amplitude,
+            octaves);
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\GenerationSettingsScriptableObject.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileGridBuilder.cs ---
+
+// TODO ROADMAP:
+// [x] Deterministic grid generation
+// [x] Strategy-driven tile selection
+// [ ] Add multi-level subdivision support
+// [ ] Add adjacency constraint solving
+// [ ] Add streaming / chunk generation
+// [ ] Add metadata output model
+
+using System;
+
+namespace Truchet.Tiles
+{
+    public sealed class TileGridBuilder
+    {
+        private readonly GenerationSettings settings;
+        private readonly ITileSelectionStrategy strategy;
+
+        public TileGridBuilder(
+            GenerationSettings settings,
+            ITileSelectionStrategy strategy)
+        {
+            this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            this.strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+        }
+
+        /// <summary>
+        /// Builds a deterministic 2D grid of TileType.
+        /// </summary>
+        public TileType[,] Build()
+        {
+            int rows = settings.Rows;
+            int columns = settings.Columns;
+
+            var grid = new TileType[rows, columns];
+
+            for (int y = 0; y < rows; y++)
+            {
+                for (int x = 0; x < columns; x++)
+                {
+                    grid[y, x] = strategy.SelectTile(x, y, 0);
+                }
+            }
+
+            return grid;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileGridBuilder.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\ITileTreeRenderer.cs ---
+
+// TODO ROADMAP:
+// [x] Introduce TileTree rendering abstraction
+// [ ] Add Texture2D backend
+// [ ] Add Mesh backend
+// [ ] Add GPU shader backend
+// [ ] Add LOD-aware renderer
+
+namespace Truchet.Rendering
+{
+    using Truchet.Tiles;
+
+    public interface ITileTreeRenderer
+    {
+        void Render(TileNode[,] rootNodes);
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\ITileTreeRenderer.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileTreeDebugVisualizer.cs ---
+
+// TODO ROADMAP:
+// [x] Switch to ScriptableObject settings
+// [ ] Add runtime regeneration button
+// [ ] Add play-mode rebuild toggle
+
+using NaughtyAttributes;
+using UnityEngine;
+using Truchet.Tiles;
+
+public class TileTreeDebugVisualizer : MonoBehaviour
+{
+    public GenerationSettingsScriptableObject settingsAsset;
+
+    public float baseTileSize = 1f;
+
+    private TileNode[,] grid;
+
+    private void OnValidate()
+    {
+        if (settingsAsset != null)
+            Generate();
+    }
+
+    private void Generate()
+    {
+        var runtime = settingsAsset.ToRuntime();
+    
+        ITileSelectionStrategy strategy =
+            runtime.UsePerlin
+                ? new PerlinTileSelectionStrategy(
+                    runtime.Seed,
+                    (float)runtime.Frequency,
+                    (float)runtime.Amplitude,
+                    runtime.Octaves)
+                : new RandomTileSelectionStrategy(runtime.Seed);
+
+        var builder = new TileTreeBuilder(runtime, strategy);
+        grid = builder.Build();
+    }
+    
+    private void OnDrawGizmos()
+    {
+        if (grid == null)
+            Generate();
+
+        if (grid == null)
+            return;
+
+        for (int y = 0; y < grid.GetLength(0); y++)
+        {
+            for (int x = 0; x < grid.GetLength(1); x++)
+            {
+                DrawNode(grid[y, x], x * baseTileSize, y * baseTileSize, baseTileSize);
+            }
+        }
+    }
+
+    private void DrawNode(TileNode node, float worldX, float worldY, float size)
+    {
+        if (node.IsLeaf)
+        {
+            var leaf = (LeafTileNode)node;
+
+            Gizmos.color = GetColorFromTileType(leaf.TileType);
+
+            Vector3 center = new Vector3(
+                worldX + size * 0.5f,
+                0,
+                worldY + size * 0.5f);
+
+            Gizmos.DrawCube(center, new Vector3(size, 0.01f, size));
+            return;
+        }
+
+        var container = (ContainerTileNode)node;
+
+        float half = size * 0.5f;
+
+        // NW
+        DrawNode(container.Children[0], worldX, worldY + half, half);
+
+        // NE
+        DrawNode(container.Children[1], worldX + half, worldY + half, half);
+
+        // SE
+        DrawNode(container.Children[2], worldX + half, worldY, half);
+
+        // SW
+        DrawNode(container.Children[3], worldX, worldY, half);
+    }
+
+    private Color GetColorFromTileType(TileType type)
+    {
+        int id = type.GetTileId();
+
+        // Simple deterministic color mapping
+        float hue = (id * 0.1f) % 1f;
+        return Color.HSVToRGB(hue, 0.6f, 0.9f);
+    }
+
+    [Button]
+    void DbgPrintTree()
+    {
+        if (grid == null)
+        {
+            Debug.LogWarning("Grid not generated.");
+            return;
+        }
+
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(4096);
+
+        sb.AppendLine("==== TILE TREE DUMP ====");
+
+        int rows = grid.GetLength(0);
+        int cols = grid.GetLength(1);
+
+        for (int y = 0; y < rows; y++)
+        {
+            for (int x = 0; x < cols; x++)
+            {
+                sb.AppendLine($"Root [{x},{y}]");
+                PrintNode(grid[y, x], sb, 1);
+            }
+        }
+
+        Debug.Log(sb.ToString());
+    }
+
+    private void PrintNode(TileNode node, System.Text.StringBuilder sb, int indent)
+    {
+        string pad = new string(' ', indent * 2);
+
+        if (node.IsLeaf)
+        {
+            var leaf = (LeafTileNode)node;
+
+            sb.AppendLine(
+                $"{pad}- Leaf | Level: {leaf.Level} | Pos: ({leaf.X},{leaf.Y}) | Type: {leaf.TileType}");
+            return;
+        }
+
+        var container = (ContainerTileNode)node;
+
+        sb.AppendLine(
+            $"{pad}- Container | Level: {container.Level} | Pos: ({container.X},{container.Y})");
+
+        for (int i = 0; i < container.Children.Length; i++)
+        {
+            sb.AppendLine($"{pad}  Child[{i}]");
+            PrintNode(container.Children[i], sb, indent + 2);
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileTreeDebugVisualizer.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\NoiseMap.cs ---
+
+﻿using System;
+using System.Threading.Tasks;
+
+namespace Truchet.Perlin
+{
+    class NoiseMap
+    {   
+
+        public static double[,] GenerateNoiseMap(Random rand, int width, int height,  double frequency,  double amplitude, int octaves)
+        {
+            PerlinNoise perlin = new PerlinNoise(rand);
+            double[,] matrix = new double[width, height];
+
+            /// track min and max noise value. Used to normalize the result to the 0 to 1.0 range.
+            double min = double.MaxValue;
+            double max = double.MinValue;
+
+            for (var octave = 0; octave < octaves; octave++)
+            {
+                Parallel.For(0, width, (x) =>
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        double noise = perlin.Noise(x * frequency * 1d / width, y * frequency * 1d / height);
+                        noise *= amplitude;
+                        matrix[x, y] = noise;
+                        min = Math.Min(min, noise);
+                        max = Math.Max(max, noise);
+                    }
+                }
+                );
+                frequency *= 2;
+                amplitude /= 2;
+            }
+
+            //normalize matrix
+            for (int x = 0; x < width; x++)
+                for (int y = 0; y < height; y++)
+                    matrix[x, y] = (matrix[x, y] - min) / (max - min);
+            return matrix;
+        }
+    }
+}
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\NoiseMap.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Tile.cs ---
+
+﻿using System;
+using System.Drawing;
+
+namespace Truchet.Tiles
+{
+
+    abstract class Tile
+    {
+        public int X { get; }
+        public int Y { get; }
+        public int Level { get; }
+
+        public Tile(int x, int y, int level)
+        {
+            this.X = x;
+            this.Y = y;
+            this.Level = level;
+        }
+
+        public abstract bool IsContainer();
+    }
+
+    class ContainerTile : Tile
+    {
+        //Clockwise from NW: NW, NE, SE, SW, 
+        public Tile[] Container { get; }
+
+        public ContainerTile(int x, int y, int level, Tile[] subdivison) 
+            : base(x, y, level)
+        {
+            foreach (Tile t in subdivison) if (t == null) throw new Exception("container has to be filled");
+            Container = subdivison;
+        }
+
+        public override bool IsContainer()
+        {
+            return true;
+        }
+    }
+
+    class GraphicTile : Tile
+    {
+        //Reference to the tileset img
+        public Image Image { get; }
+        public TileType Type { get; }
+        public GraphicTile(int x, int y, int level, TileType type, Image image) 
+            : base(x, y, level)
+        {
+            Type = type;
+            Image = image;
+        }
+        public override bool IsContainer()
+        {
+            return false;
+        }
+    }
+}
+
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Tile.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileSelectionStrategies\PerlinTileSelectionStrategy.cs ---
+
+// TODO ROADMAP:
+// [x] Replace custom Perlin with Unity Mathf.PerlinNoise
+// [x] Implement seed offset system
+// [x] Implement fBm (multi-octave)
+// [ ] Add AnimationCurve mapping support
+// [ ] Add domain warping option
+// [ ] Make Burst-compatible version
+
+using System;
+using UnityEngine;
+
+namespace Truchet.Tiles
+{
+    public sealed class PerlinTileSelectionStrategy : ITileSelectionStrategy
+    {
+        private readonly TileType[] tileTypes;
+
+        private readonly float baseFrequency;
+        private readonly float baseAmplitude;
+        private readonly int octaves;
+
+        private readonly float seedOffsetX;
+        private readonly float seedOffsetY;
+
+        public PerlinTileSelectionStrategy(
+            int seed,
+            float frequency,
+            float amplitude,
+            int octaves)
+        {
+            tileTypes = (TileType[])Enum.GetValues(typeof(TileType));
+
+            baseFrequency = frequency;
+            baseAmplitude = amplitude;
+            this.octaves = octaves;
+
+            // Convert seed into deterministic 2D offsets
+            unchecked
+            {
+                seedOffsetX = (seed * 0.1234567f) % 10000f;
+                seedOffsetY = (seed * 0.7654321f) % 10000f;
+            }
+        }
+
+        public TileType SelectTile(int x, int y, int level)
+        {
+            float noiseValue = 0f;
+
+            float frequency = baseFrequency;
+            float amplitude = baseAmplitude;
+
+            for (int i = 0; i < octaves; i++)
+            {
+                float sampleX = (x + seedOffsetX) * frequency;
+                float sampleY = (y + seedOffsetY) * frequency;
+
+                float perlin = Mathf.PerlinNoise(sampleX, sampleY);
+
+                noiseValue += perlin * amplitude;
+
+                frequency *= 2f;
+                amplitude *= 0.5f;
+            }
+
+            // Clamp to [0,1]
+            noiseValue = Mathf.Clamp01(noiseValue);
+
+            int index = Mathf.FloorToInt(noiseValue * (tileTypes.Length - 1));
+
+            return tileTypes[index];
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileSelectionStrategies\PerlinTileSelectionStrategy.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Vec2.cs ---
+
+﻿using System;
+
+namespace Truchet.Perlin
+{
+    struct Vec2
+    {
+        public double X { get; }
+        public double Y { get; }
+        public Vec2(double x, double y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public static Vec2 operator +(Vec2 a) => a;
+        public static Vec2 operator -(Vec2 a) => new Vec2(-a.X, -a.Y);
+        public static Vec2 operator +(Vec2 a, Vec2 b) => new Vec2(a.X + b.X, a.Y + b.Y);
+        public static Vec2 operator -(Vec2 a, Vec2 b) => a + (-b);
+        
+        public static double Length(Vec2 a)
+        {
+            return Math.Sqrt(LengthSquared(a));
+        }
+
+        public static double LengthSquared(Vec2 a)
+        {
+            return (a.X * a.X) + (a.Y * a.Y);
+        }
+
+        public static double DotProduct(Vec2 a, Vec2 b)
+        {
+            return (a.X * b.X) + (a.Y * b.Y);
+        }
+
+        public static Vec2 Normalize(Vec2 a)
+        {
+            double len = LengthSquared(a);
+            if (len > 0)
+            {
+                len = 1 / Math.Sqrt(len);
+                return new Vec2(a.X * len, a.Y * len);
+            }
+            else return a;
+        }
+    }
+}
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Vec2.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\ITileSelectionStrategy.cs ---
+
+// TODO ROADMAP:
+// [x] Introduce tile selection abstraction
+// [ ] Implement RandomTileSelectionStrategy
+// [ ] Implement PerlinTileSelectionStrategy
+// [ ] Support constraint-aware selection
+// [ ] Support weighted tile distribution
+
+namespace Truchet.Tiles
+{
+    public interface ITileSelectionStrategy
+    {
+        TileType SelectTile(
+            int x,
+            int y,
+            int level);
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\ITileSelectionStrategy.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\Tileset.cs ---
+
+// TODO ROADMAP:
+// [x] Remove all System.Drawing usage
+// [x] Remove Image/Bitmap return types
+// [x] Replace with geometry command emission
+// [ ] Plug into Unity Texture2D renderer
+// [ ] Plug into Mesh renderer
+// [ ] Plug into Shader renderer
+
+using System;
+using System.Collections.Generic;
+
+namespace Truchet.Tiles
+{
+    class Tileset
+    {
+        private readonly int levels;
+        private readonly int baseTileSize;
+
+        public readonly int tileCount;
+
+        // Instead of Image[,]
+        // Each tile now holds draw commands
+        private readonly List<TileDrawCommand>[,] tileCommands;
+
+        public Tileset(int tileSize, int levels)
+        {
+            this.baseTileSize = tileSize;
+            this.levels = levels;
+            tileCount = Enum.GetNames(typeof(TileType)).Length;
+
+            tileCommands = InitializeTileset();
+        }
+
+        public IReadOnlyList<TileDrawCommand> GetTile(int level, int index)
+        {
+            return tileCommands[level, index];
+        }
+
+        private List<TileDrawCommand>[,] InitializeTileset()
+        {
+            var array = new List<TileDrawCommand>[levels, tileCount];
+
+            int currentTileSize = baseTileSize;
+            var tiles = Enum.GetValues(typeof(TileType));
+
+            for (int currentLevel = 0; currentLevel < levels; currentLevel++)
+            {
+                int i = 0;
+                foreach (TileType tile in tiles)
+                {
+                    array[currentLevel, i++] =
+                        GenerateTileCommands(tile, currentTileSize);
+                }
+
+                currentTileSize /= 2;
+            }
+
+            return array;
+        }
+
+        private List<TileDrawCommand> GenerateTileCommands(
+            TileType type,
+            int tileSize)
+        {
+            var commands = new List<TileDrawCommand>();
+
+            FillWhiteCube(commands, tileSize);
+
+            switch (type)
+            {
+                case TileType.Empty:
+                    break;
+
+                case TileType.Vertical:
+                    FillVerticalBlackQuad(commands, tileSize);
+                    break;
+
+                case TileType.Horizontal:
+                    FillHorizontalBlackQuad(commands, tileSize);
+                    break;
+
+                case TileType.Cross:
+                    FillCornerBlackPies(commands, tileSize, new[] { true, true, true, true });
+                    FillVerticalBlackQuad(commands, tileSize);
+                    break;
+
+                case TileType.ForwardSlash:
+                    FillCornerBlackPies(commands, tileSize, new[] { true, false, true, false });
+                    break;
+
+                case TileType.BackSlash:
+                    FillCornerBlackPies(commands, tileSize, new[] { false, true, false, true });
+                    break;
+
+                case TileType.Frown_NW:
+                    FillCornerBlackPies(commands, tileSize, new[] { true, false, false, false });
+                    break;
+
+                case TileType.Frown_NE:
+                    FillCornerBlackPies(commands, tileSize, new[] { false, true, false, false });
+                    break;
+
+                case TileType.Frown_SW:
+                    FillCornerBlackPies(commands, tileSize, new[] { false, false, true, false });
+                    break;
+
+                case TileType.Frown_SE:
+                    FillCornerBlackPies(commands, tileSize, new[] { false, false, false, true });
+                    break;
+
+                case TileType.T_N:
+                    FillCornerBlackPies(commands, tileSize, new[] { true, true, false, false });
+                    FillHorizontalBlackQuad(commands, tileSize);
+                    break;
+
+                case TileType.T_E:
+                    FillCornerBlackPies(commands, tileSize, new[] { false, true, true, false });
+                    FillVerticalBlackQuad(commands, tileSize);
+                    break;
+
+                case TileType.T_S:
+                    FillCornerBlackPies(commands, tileSize, new[] { false, false, true, true });
+                    FillHorizontalBlackQuad(commands, tileSize);
+                    break;
+
+                case TileType.T_W:
+                    FillCornerBlackPies(commands, tileSize, new[] { true, false, false, true });
+                    FillVerticalBlackQuad(commands, tileSize);
+                    break;
+
+                default:
+                    throw new Exception("Invalid TileType");
+            }
+
+            FillCornerWhiteCircles(commands, tileSize);
+            FillMiddleBlackCircles(commands, tileSize);
+
+            return commands;
+        }
+
+        // =========================
+        // GEOMETRY COMMAND HELPERS
+        // =========================
+
+        private static void FillWhiteCube(List<TileDrawCommand> cmds, int tileSize)
+        {
+            cmds.Add(new TileDrawCommand
+            {
+                Type = DrawCommandType.Rectangle,
+                X = tileSize / 2f,
+                Y = tileSize / 2f,
+                Width = tileSize,
+                Height = tileSize,
+                IsPrimary = true
+            });
+        }
+
+        private static void FillVerticalBlackQuad(List<TileDrawCommand> cmds, int tileSize)
+        {
+            int a = tileSize / 2;
+            int b = tileSize / 3;
+
+            cmds.Add(new TileDrawCommand
+            {
+                Type = DrawCommandType.Rectangle,
+                X = a + b,
+                Y = a,
+                Width = b,
+                Height = tileSize,
+                IsPrimary = false
+            });
+        }
+
+        private static void FillHorizontalBlackQuad(List<TileDrawCommand> cmds, int tileSize)
+        {
+            int a = tileSize / 2;
+            int b = tileSize / 3;
+
+            cmds.Add(new TileDrawCommand
+            {
+                Type = DrawCommandType.Rectangle,
+                X = a,
+                Y = a + b,
+                Width = tileSize,
+                Height = b,
+                IsPrimary = false
+            });
+        }
+
+        private static void FillCornerBlackPies(
+            List<TileDrawCommand> cmds,
+            int tileSize,
+            bool[] corners)
+        {
+            int corner = -tileSize / 6;
+            int diameter = (tileSize / 3) * 4;
+
+            void Add(int x, int y, float start)
+            {
+                cmds.Add(new TileDrawCommand
+                {
+                    Type = DrawCommandType.Pie,
+                    X = x,
+                    Y = y,
+                    Width = diameter,
+                    Height = diameter,
+                    StartAngle = start,
+                    SweepAngle = 90,
+                    IsPrimary = false
+                });
+            }
+
+            if (corners[0]) Add(corner, corner, 0);
+            if (corners[1]) Add(corner + tileSize, corner, 90);
+            if (corners[2]) Add(corner + tileSize, corner + tileSize, 180);
+            if (corners[3]) Add(corner, corner + tileSize, 270);
+        }
+
+        private static void FillCornerWhiteCircles(List<TileDrawCommand> cmds, int tileSize)
+        {
+            int corner = tileSize / 6;
+            int diameter = (tileSize / 3) * 2;
+
+            void Add(int x, int y)
+            {
+                cmds.Add(new TileDrawCommand
+                {
+                    Type = DrawCommandType.Ellipse,
+                    X = x,
+                    Y = y,
+                    Width = diameter,
+                    Height = diameter,
+                    IsPrimary = true
+                });
+            }
+
+            Add(corner, corner);
+            Add(corner, corner + tileSize);
+            Add(corner + tileSize, corner);
+            Add(corner + tileSize, corner + tileSize);
+        }
+
+        private static void FillMiddleBlackCircles(List<TileDrawCommand> cmds, int tileSize)
+        {
+            int diameter = (tileSize / 3);
+            int a = (tileSize / 2) + (tileSize / 3);
+            int b = (tileSize / 3);
+            int c = (tileSize * 4) / 3;
+
+            void Add(int x, int y)
+            {
+                cmds.Add(new TileDrawCommand
+                {
+                    Type = DrawCommandType.Ellipse,
+                    X = x,
+                    Y = y,
+                    Width = diameter,
+                    Height = diameter,
+                    IsPrimary = false
+                });
+            }
+
+            Add(a, b);
+            Add(a, c);
+            Add(b, a);
+            Add(c, a);
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\Tileset.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileSelectionStrategies\RandomTileSelectionStrategy.cs ---
+
+// TODO ROADMAP:
+// [x] Deterministic random selection
+// [ ] Add weighted distribution support
+// [ ] Add exclusion rules
+// [ ] Add adjacency-aware filtering
+
+using System;
+
+namespace Truchet.Tiles
+{
+    public sealed class RandomTileSelectionStrategy : ITileSelectionStrategy
+    {
+        private readonly Random random;
+        private readonly TileType[] tileTypes;
+
+        public RandomTileSelectionStrategy(int seed)
+        {
+            random = new Random(seed);
+            tileTypes = (TileType[])Enum.GetValues(typeof(TileType));
+        }
+
+        public TileType SelectTile(int x, int y, int level)
+        {
+            // Deterministic per grid position
+            int hash = Hash(x, y, level);
+            random.Next(); // advance internal state
+            int index = Math.Abs(hash ^ random.Next()) % tileTypes.Length;
+            return tileTypes[index];
+        }
+
+        private int Hash(int x, int y, int level)
+        {
+            unchecked
+            {
+                int h = 17;
+                h = h * 31 + x;
+                h = h * 31 + y;
+                h = h * 31 + level;
+                return h;
+            }
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileSelectionStrategies\RandomTileSelectionStrategy.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileNode.cs ---
+
+// TODO ROADMAP:
+// [x] Introduce hierarchical tile node model
+// [x] Separate leaf and container nodes
+// [ ] Add bounds struct (RectInt)
+// [ ] Add world-space transform data
+// [ ] Add metadata payload support
+// [ ] Add traversal utilities
+
+namespace Truchet.Tiles
+{
+    public abstract class TileNode
+    {
+        public int X { get; }
+        public int Y { get; }
+        public int Level { get; }
+
+        protected TileNode(int x, int y, int level)
+        {
+            X = x;
+            Y = y;
+            Level = level;
+        }
+
+        public abstract bool IsLeaf { get; }
+    }
+
+    public sealed class LeafTileNode : TileNode
+    {
+        public TileType TileType { get; }
+
+        public LeafTileNode(int x, int y, int level, TileType tileType)
+            : base(x, y, level)
+        {
+            TileType = tileType;
+        }
+
+        public override bool IsLeaf => true;
+    }
+
+    public sealed class ContainerTileNode : TileNode
+    {
+        // NW, NE, SE, SW
+        public TileNode[] Children { get; }
+
+        public ContainerTileNode(int x, int y, int level, TileNode[] children)
+            : base(x, y, level)
+        {
+            if (children == null || children.Length != 4)
+                throw new System.ArgumentException("Container must have 4 children.");
+
+            Children = children;
+        }
+
+        public override bool IsLeaf => false;
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileNode.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileTreeBuilder.cs ---
+
+// TODO ROADMAP:
+// [x] Implement recursive multi-scale subdivision
+// [x] Strategy-driven tile selection per level
+// [ ] Add probabilistic subdivision control
+// [ ] Add adjacency constraint propagation
+// [ ] Add partial rebuild support
+// [ ] Add chunk streaming support
+// TODO: Animated subdivision
+// TODO: LOD rendering
+// TODO: Progressive reveal
+// TODO: GPU instancing per level
+// TODO: Adaptive subdivision
+// TODO: Metadata tagging
+using System;
+
+namespace Truchet.Tiles
+{
+    public sealed class TileTreeBuilder
+    {
+        private readonly GenerationSettings settings;
+        private readonly ITileSelectionStrategy strategy;
+
+        public TileTreeBuilder(
+            GenerationSettings settings,
+            ITileSelectionStrategy strategy)
+        {
+            this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            this.strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+        }
+
+        public TileNode[,] Build()
+        {
+            int rows = settings.Rows;
+            int columns = settings.Columns;
+
+            var grid = new TileNode[rows, columns];
+
+            for (int y = 0; y < rows; y++)
+            {
+                for (int x = 0; x < columns; x++)
+                {
+                    grid[y, x] = BuildNode(x, y, 0);
+                }
+            }
+
+            return grid;
+        }
+
+        private TileNode BuildNode(int x, int y, int level)
+        {
+            if (level >= settings.Levels - 1)
+            {
+                var tile = strategy.SelectTile(x, y, level);
+                return new LeafTileNode(x, y, level, tile);
+            }
+
+            // Subdivide into 4 quadrants
+            int nextLevel = level + 1;
+
+            var children = new TileNode[4];
+
+            children[0] = BuildNode(x * 2,     y * 2,     nextLevel); // NW
+            children[1] = BuildNode(x * 2 + 1, y * 2,     nextLevel); // NE
+            children[2] = BuildNode(x * 2 + 1, y * 2 + 1, nextLevel); // SE
+            children[3] = BuildNode(x * 2,     y * 2 + 1, nextLevel); // SW
+
+            return new ContainerTileNode(x, y, level, children);
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileTreeBuilder.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileType.cs ---
+
+// TODO ROADMAP:
+// [x] Reintroduce Direction bitmask
+// [x] Reintroduce TileType enum
+// [ ] Add helper utilities for connectivity queries
+// [ ] Move to Truchet.Core namespace (future split)
+// [ ] Add metadata mapping layer
+
+using System;
+
+namespace Truchet.Tiles
+{
+    [Flags]
+    public enum Direction
+    {
+        None  = 0b_0000,
+        North = 0b_0001,
+        East  = 0b_0010,
+        South = 0b_0100,
+        West  = 0b_1000
+    }
+
+    public enum TileType
+    {
+        Empty           = (0  << 4) | Direction.None,
+
+        Vertical        = (1  << 4) | Direction.North | Direction.South,
+        Horizontal      = (2  << 4) | Direction.East  | Direction.West,
+        Cross           = (3  << 4) | Direction.North | Direction.East  | Direction.South | Direction.West,
+
+        ForwardSlash    = (4  << 4) | Direction.North | Direction.East  | Direction.South | Direction.West,
+        BackSlash       = (5  << 4) | Direction.North | Direction.East  | Direction.South | Direction.West,
+
+        Frown_NW        = (6  << 4) | Direction.North | Direction.West,
+        Frown_NE        = (7  << 4) | Direction.North | Direction.East,
+        Frown_SE        = (8  << 4) | Direction.South | Direction.East,
+        Frown_SW        = (9  << 4) | Direction.South | Direction.West,
+
+        T_N             = (10 << 4) | Direction.North | Direction.East  | Direction.West,
+        T_E             = (11 << 4) | Direction.North | Direction.East  | Direction.South,
+        T_S             = (12 << 4) | Direction.East  | Direction.South | Direction.West,
+        T_W             = (13 << 4) | Direction.North | Direction.South | Direction.West
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileType.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Perlin.cs ---
+
+﻿/// PERLIN NOISE FUNCTION
+/// transcribed and adapted from: 
+/// https://en.wikipedia.org/wiki/Smoothstep
+/// https://en.wikipedia.org/wiki/Perlin_noise
+/// http://www.siafoo.net/snippet/144?nolinenos#perlin2003
+
+using System;
+
+namespace Truchet.Perlin
+{
+
+    class PerlinNoise
+    {
+
+        private readonly Random rand;
+        private readonly int[] permutation;
+        private readonly Vec2[] gradients;
+
+        private const int SIZE = 256;
+
+        public PerlinNoise(Random rand)
+        {
+            this.rand = rand;
+            permutation = RandomizePermutation();
+            gradients = RandomizeGradients();
+        }
+
+        private int[] RandomizePermutation()
+        {
+            int[] perm = new int[SIZE];
+            for (int i = 0; i < SIZE; i++) perm[i] = i;
+            // shuffle the array
+            for (int i = 0; i < SIZE; i++)
+            {
+                int source = rand.Next(SIZE);
+                int temp = perm[i];
+                perm[i] = perm[source];
+                perm[source] = temp;
+            }
+            return perm;
+
+            // just as a sidenote, this has worse performance, but is really cool:
+            // return Enumerable.Range(0, SIZE).ToArray().OrderBy(x => rand.Next()).ToArray();
+        }
+
+        private Vec2[] RandomizeGradients()
+        {
+            Vec2[] gradient = new Vec2[SIZE];
+            for (int i = 0; i < SIZE; i++)
+            {
+                Vec2 v;
+                do v = new Vec2((rand.NextDouble() * 2 - 1), (rand.NextDouble() * 2 - 1));
+                while (Vec2.LengthSquared(v) >= 1);
+                gradient[i] = Vec2.Normalize(v);
+            }
+            return gradient;
+        }
+
+        public double Noise(double x, double y)
+        {
+            Vec2 origin = new Vec2(x, y);
+            Vec2 cell = new Vec2(Math.Floor(x), Math.Floor(y));
+            
+            var corners = new[] { 
+                cell,
+                new Vec2(cell.X, cell.Y+1), 
+                new Vec2(cell.X+1, cell.Y), 
+                new Vec2(cell.X+1, cell.Y+1) 
+            };
+
+            double sum = 0;
+            foreach (Vec2 v in corners)
+            {
+                Vec2 w = origin - v;
+                int i = permutation[(int)v.X % SIZE];
+                i = permutation[(i + (int)v.Y) % SIZE];
+                Vec2 grad = gradients[i % SIZE];
+
+                sum += Smoothstep(w.X, w.Y) * Vec2.DotProduct(grad, w);
+            }
+            return Math.Max(Math.Min(sum, 1d), -1d);
+        }
+
+        private double Smoothstep(double a, double b)
+        {
+            a = Math.Abs(a);
+            b = Math.Abs(b);
+            a = 1d - a * a * a * (a * (a * 6 - 15) + 10);
+            b = 1d - b * b * b * (b * (b * 6 - 15) + 10);
+            return a * b;
+        }
+    }
+}
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Perlin.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\README.md ---
+
+# Truchet
+Multi-scale Truchet tile pattern generator, based on a paper by Christopher Carlson.
+
+[christophercarlson.com MULTI-SCALE TRUCHET PATTERNS](https://christophercarlson.com/portfolio/multi-scale-truchet-patterns/) </br>
+[Bridges 2018 paper: Multi-Scale Truchet Patterns](http://archive.bridgesmathart.org/2018/bridges2018-39.html) </br>
+
+Written for Software Development with C#/921CSPTST1K13/2020S
+
+# Help
+Standard functionality via CLI.
+```
+Syntax: truchet.exe [-h] [-d] [-r] [-p] [-b]
+                    [--Palette id] [-l count] [-s seed]
+                    [-rc count] [-cc count] [-ts size]
+
+Options:
+   -h              Displays this help screen.
+   -d              Generates additional debug images. (default: off)
+   -r              Sets generating method to random. (default: off)
+   -p              Sets generating method to perlin noise.(default: on)
+   -b              Turns on border cropping. (default: off)
+   --Palette id    Specifies a palette. (default: Monochrome)
+   -l count        Specifies the number of subdivision levels. (default: 3)
+   -s seed         Specifies a seed. (default: random seed)
+   -rc count       Specifies the amount of rows. (default: 10)
+   -cc count       Specifies the amount of columns. (default: 10)
+   -ts size        Specifies the tile size. (default: 300)
+
+The following palettes are available:
+   0: Monochrome
+   1: Sapphire
+   2: Imperial
+   3: Deep
+   4: Apricot
+   5: Xiketic
+   6: Canary
+   7: Meadow
+```
+## Sample Images
+
+![sample1](https://user-images.githubusercontent.com/32034333/81904386-8160fd80-95c3-11ea-9840-5bce8c946883.png)
+![sample2](https://user-images.githubusercontent.com/32034333/81904407-8920a200-95c3-11ea-94e9-94c8e7fbe2ff.png)
+![sample3](https://user-images.githubusercontent.com/32034333/81904423-8cb42900-95c3-11ea-9c69-c644c8e17ad8.png)
+
+
+## Features
+- [x] basic functionality
+- [x] perlin noise
+- [x] color schemes
+- [x] command line arguments
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\README.md ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Tileset.cs ---
+
+﻿using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+
+namespace Truchet.Tiles
+{   
+
+    class Tileset
+    {
+
+        readonly int levels;
+        readonly int tileSize;
+        readonly int[][] lookupTable;
+        public readonly int tileCount;
+
+        /* using a rectangular array because 
+         * it's a neat c# feature to show 
+         */
+        readonly Image[,] tileArray;
+        readonly Palette palette;
+
+
+        //debug
+        private const bool Smoothing = true;
+
+
+        public Tileset(int tileSize, int levels, Palette palette)
+        {
+            this.tileSize = tileSize;
+            this.levels = levels;
+            this.palette = palette;
+            tileCount = Enum.GetNames(typeof(TileType)).Length;
+
+           
+            tileArray = InitializeTileset();
+            //lookupTable = GenerateLookupTable();
+        }
+
+        public Image GetTile(int level, int index)
+        {   
+            return tileArray[level, index];
+        }
+
+        public void GenerateDebugImage()
+        {
+            int width = tileSize * 2 * tileCount;
+            int height = 0;
+            int f = tileSize * 2;
+            //calculate debug image height
+            for (int i = 0; i < levels; i++) {
+                height += f;
+                f /= 2;
+            }
+
+            Image image = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            Graphics graphics = Graphics.FromImage(image);
+            int x = 0, y = 0, mod = tileSize * 2;
+            for(int i = 0; i < levels; i++) {
+                for (int j = 0; j < tileCount; j++)
+                {
+                    graphics.DrawImage(tileArray[i, j], x, y);
+                    x += mod;
+                }
+                y += mod;
+                mod /= 2;
+                x = 0;
+            }
+            image.Save("tileset_debug.png", ImageFormat.Png);
+        }
+
+
+        private Image[,] InitializeTileset()
+        {
+            Image[,] tileArray = new Image[levels, tileCount];
+            int currentTileSize = tileSize;
+            var tiles = Enum.GetValues(typeof(TileType));
+            Brush primary = palette.PrimaryBrush;
+            Brush secondary = palette.SecondaryBrush;
+
+            for (int currentLevel = 0; currentLevel < levels; currentLevel++)
+            {
+                int i = 0;
+                foreach(TileType tile in tiles)
+                {
+                    tileArray[currentLevel, i++] = DrawTileImage(tile, currentTileSize, primary, secondary);
+                }
+
+                currentTileSize /= 2;
+                //switch colors at each subdivision step 
+                var temp = primary;
+                primary = secondary;
+                secondary = temp;
+            }
+
+            return tileArray;
+        }
+
+
+        private int[][] GenerateLookupTable()
+        {
+            var directions = Enum.GetValues(typeof(Direction));
+            var tiles = Enum.GetValues(typeof(TileType));
+            int[][] table = new int[directions.Length][];
+            int i = 0;
+            foreach (Direction dir in directions)
+            {
+                int count = 0;
+                foreach (TileType tile in tiles)
+                {
+                    if (((int)tile & (int)dir) != 0) count++;
+                }
+                table[i] = new int[count];
+                count = 0;
+                foreach (TileType tile in tiles)
+                {
+                    if (((int)tile & (int)dir) != 0) table[i][count++] = (int)tile;
+                }
+                i++;
+            }
+            return table;
+        }
+
+        /* function to draw all the tiles
+         * This is seperate for readability and debug reasons
+         * I used to just draw the necessary ones and copy and rotate the rest
+           but that turned out to be a terrible idea because of floating point
+           pixel-level imperfectness */
+        private Image DrawTileImage(TileType type, int tileSize, Brush primary, Brush secondary)
+        {
+            Image i = GetEmptyImage(tileSize * 2);
+            Graphics g = GetGraphicsFromImage(i);
+
+            //in case it's a gradient brush, we have to rotate the gradient for some tiles.
+            if(palette.GetType().Equals(typeof(LinearGradientPalette)))
+            {
+                float rotation;
+                float scale = (float)tileSize / (float)LinearGradientPalette.GradientBrushSize;
+
+                switch(type)
+                {
+                    case TileType.Empty:
+                    case TileType.Horizontal:
+                    case TileType.T_E:
+                    case TileType.T_W:
+                        rotation = 0;
+                        break;
+
+                    case TileType.T_S:
+                    case TileType.T_N:
+                    case TileType.Vertical:
+                    case TileType.Cross:
+                        rotation = 90;
+                        break;
+
+                    case TileType.Forwardslash:
+                    case TileType.Frown_NW:
+                    case TileType.Frown_SE:
+                        rotation = 45;
+                        break;
+
+                    case TileType.Backslash:
+                    case TileType.Frown_NE:
+                    case TileType.Frown_SW:
+                        rotation = 135;
+                        break;
+
+                    default:
+                        throw new Exception("Not a valid TileType");
+                }
+                var castPalette = (LinearGradientPalette) palette;
+                castPalette.Transform(scale, rotation);
+            }
+            FillWhiteCube(g, tileSize, primary);
+
+            switch (type)
+            {
+
+                case TileType.Empty:
+                    break;
+
+                case TileType.Vertical:
+                    FillVerticalBlackQuad(g, tileSize, secondary);
+                    break;
+
+                case TileType.Horizontal:
+                    FillHorizontalBlackQuad(g, tileSize, secondary);
+                    break;
+
+                case TileType.Cross:
+                    bool[] crossBool = { true, true, true, true };
+                    FillCornerBlackPies(g, tileSize, crossBool, secondary);
+                    FillVerticalBlackQuad(g, tileSize, secondary);
+                    break;
+
+                case TileType.Forwardslash:
+                    bool[] fwsBool = { true, false, true, false };
+                    FillCornerBlackPies(g, tileSize, fwsBool, secondary);
+                    break;
+
+                case TileType.Backslash:
+                    bool[] bsBool = { false, true, false, true };
+                    FillCornerBlackPies(g, tileSize, bsBool, secondary);
+                    break;
+
+                case TileType.Frown_NW:
+                    bool[] fnwBool = { true, false, false, false };
+                    FillCornerBlackPies(g, tileSize, fnwBool, secondary);
+                    break;
+
+                case TileType.Frown_NE:
+                    bool[] fneBool = { false, true, false, false };
+                    FillCornerBlackPies(g, tileSize, fneBool, secondary);
+                    break;
+
+                case TileType.Frown_SW:
+                    bool[] fswBool = { false, false, true, false };
+                    FillCornerBlackPies(g, tileSize, fswBool, secondary);
+                    break;
+
+                case TileType.Frown_SE:
+                    bool[] fseBool = { false, false, false, true };
+                    FillCornerBlackPies(g, tileSize, fseBool, secondary);
+                    break;
+
+                case TileType.T_N:
+                    bool[] tn_Bool = { true, true, false, false };
+                    FillCornerBlackPies(g, tileSize, tn_Bool, secondary);
+                    FillHorizontalBlackQuad(g, tileSize, secondary);
+                    break;
+
+                case TileType.T_E:
+                    bool[] teBool = { false, true, true, false };
+                    FillCornerBlackPies(g, tileSize, teBool, secondary);
+                    FillVerticalBlackQuad(g, tileSize, secondary);
+                    break;
+
+                case TileType.T_S:
+                    bool[] ts_Bool = { false, false, true, true };
+                    FillCornerBlackPies(g, tileSize, ts_Bool, secondary);
+                    FillHorizontalBlackQuad(g, tileSize, secondary);
+                    break;
+
+                case TileType.T_W:
+                    bool[] twBool = { true, false, false, true };
+                    FillCornerBlackPies(g, tileSize, twBool, secondary);
+                    FillVerticalBlackQuad(g, tileSize, secondary);
+                    break;
+
+                default:
+                    throw new Exception("Not a valid TileType");
+            }
+            FillCornerWhiteCircles(g, tileSize, primary);
+            FillMiddleBlackCircles(g, tileSize, secondary);
+            return i;
+        }
+
+        /* helper functions to draw the tiles 
+            these functions will not make much sense without understanding
+            the actual process the tiles are drawn.
+             */
+
+        //fills the white cube in the middle
+        private static void FillWhiteCube(Graphics g, int tileSize, Brush primary)
+        {
+            g.FillRectangle(primary, tileSize / 2, tileSize / 2, tileSize, tileSize);
+        }
+
+        private static void FillVerticalBlackQuad(Graphics g, int tileSize, Brush secondary)
+        {
+            int a = tileSize / 2,  b = tileSize / 3;
+            g.FillRectangle(secondary, a + b, a, b, tileSize);
+        }
+
+        private static void FillHorizontalBlackQuad(Graphics g, int tileSize, Brush secondary)
+        {
+            int a = tileSize / 2, b = tileSize / 3;
+            g.FillRectangle(secondary, a, a + b, tileSize, b);
+        }
+
+        //fills the black pies in the corners
+        //like everything else in this project, the boolean array represents: NW, NE, SE, SW
+        private static void FillCornerBlackPies(Graphics g, int tileSize, bool[] corners, Brush secondary)
+        {
+            //get the upper upper left left corner, and then for the other corners we just add 1 tile length
+            int corner = -tileSize / 6;
+            int diameter = (tileSize / 3) * 4;
+            //putting this into a loop would take longer than it's worth
+            if (corners[0]) g.FillPie(secondary, corner, corner, diameter, diameter, 0, 90);
+            if (corners[1]) g.FillPie(secondary, corner + tileSize, corner, diameter, diameter, 90, 90);
+            if (corners[2]) g.FillPie(secondary, corner + tileSize, corner + tileSize, diameter, diameter, 180, 90);
+            if (corners[3]) g.FillPie(secondary, corner, corner + tileSize, diameter, diameter, 270, 90);
+  
+        }
+
+        private static void FillCornerWhiteCircles(Graphics g, int tileSize, Brush primary)
+        {
+            //get the upper upper left left corner, and then for the other corners we just add 1 tile length
+            int corner = tileSize / 6;
+            int diameter = (tileSize / 3) * 2;
+            g.FillEllipse(primary, corner, corner, diameter, diameter);
+            g.FillEllipse(primary, corner, corner + tileSize, diameter, diameter);
+            g.FillEllipse(primary, corner + tileSize, corner, diameter, diameter);
+            g.FillEllipse(primary, corner + tileSize, corner + tileSize, diameter, diameter);
+        }
+
+        private static void FillMiddleBlackCircles(Graphics g, int tileSize, Brush secondary)
+        {
+            //these circles need a bit more math, but just a bit
+            int diameter = (tileSize / 3);
+            int a = (tileSize / 2) + (tileSize / 3);
+            int b = (tileSize / 3);
+            int c = (tileSize * 4) / 3;
+            //upper and lower small black circles
+            g.FillEllipse(secondary, a, b, diameter, diameter);
+            g.FillEllipse(secondary, a, c, diameter, diameter);
+            //left and right small black circles
+            g.FillEllipse(secondary, b, a, diameter, diameter);
+            g.FillEllipse(secondary, c, a, diameter, diameter);
+        }
+
+        private static Image GetEmptyImage(int size)
+        {
+            return new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        }
+
+        //used so smoothingMode doesn't have to be manually set every time
+        private static Graphics GetGraphicsFromImage(Image i)
+        {
+            var g = Graphics.FromImage(i);
+            if(Smoothing) g.SmoothingMode = SmoothingMode.AntiAlias;
+            return g;
+        }
+    }
+
+    public enum Direction
+    {           // NESW
+        None  = 0b_0000,
+        North = 0b_0001,
+        East  = 0b_0010,
+        South = 0b_0100,
+        West  = 0b_1000
+    }
+
+    public enum TileType
+    {
+        Empty           = (0  << 4) | Direction.None,
+        Vertical        = (1  << 4) | Direction.North | Direction.South,
+        Horizontal      = (2  << 4) | Direction.East  | Direction.West,
+        Cross           = (3  << 4) | Direction.North | Direction.East  | Direction.South | Direction.West,
+        Forwardslash    = (4  << 4) | Direction.North | Direction.East  | Direction.South | Direction.West,
+        Backslash       = (5  << 4) | Direction.North | Direction.East  | Direction.South | Direction.West,
+        Frown_NW        = (6  << 4) | Direction.North | Direction.West, 
+        Frown_NE        = (7  << 4) | Direction.North | Direction.East, 
+        Frown_SE        = (8  << 4) | Direction.South | Direction.East, 
+        Frown_SW        = (9  << 4) | Direction.South | Direction.West, 
+        T_N             = (10 << 4) | Direction.North | Direction.East  | Direction.West,
+        T_E             = (11 << 4) | Direction.North | Direction.East  | Direction.South,
+        T_S             = (12 << 4) | Direction.East  | Direction.South | Direction.West,
+        T_W             = (13 << 4) | Direction.North | Direction.South | Direction.West
+    }
+}
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\truchlib~\Tileset.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileTypeExtensions.cs ---
+
+// TODO ROADMAP:
+// [x] Encapsulate connectivity bitmask logic
+// [x] Provide directional query helpers
+// [x] Provide mask extraction helper
+// [ ] Add rotation utilities
+// [ ] Add adjacency compatibility helpers
+// [ ] Support metadata-based tile definitions
+
+using System;
+
+namespace Truchet.Tiles
+{
+    public static class TileTypeExtensions
+    {
+        private const int DirectionMask = 0b_1111;
+
+        /// <summary>
+        /// Extracts the directional connectivity mask.
+        /// </summary>
+        public static Direction GetDirections(this TileType type)
+        {
+            return (Direction)((int)type & DirectionMask);
+        }
+
+        /// <summary>
+        /// Checks if tile has a connection in given direction.
+        /// </summary>
+        public static bool HasDirection(this TileType type, Direction direction)
+        {
+            return (type.GetDirections() & direction) != 0;
+        }
+
+        /// <summary>
+        /// Returns tile identity index (upper bits).
+        /// </summary>
+        public static int GetTileId(this TileType type)
+        {
+            return ((int)type >> 4);
+        }
+
+        /// <summary>
+        /// Returns true if two tiles are directionally compatible.
+        /// </summary>
+        public static bool IsCompatibleWith(
+            this TileType a,
+            TileType b,
+            Direction directionFromAToB)
+        {
+            if (!a.HasDirection(directionFromAToB))
+                return false;
+
+            Direction opposite = GetOpposite(directionFromAToB);
+
+            return b.HasDirection(opposite);
+        }
+
+        public static Direction GetOpposite(Direction direction)
+        {
+            return direction switch
+            {
+                Direction.North => Direction.South,
+                Direction.South => Direction.North,
+                Direction.East  => Direction.West,
+                Direction.West  => Direction.East,
+                _ => Direction.None
+            };
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\TileTypeExtensions.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\GenerationSettings.cs ---
+
+// TODO ROADMAP:
+// [x] Introduce immutable generation configuration
+// [x] Remove CLI dependency concept
+// [ ] Add validation layer
+// [ ] Add ScriptableObject bridge (Unity layer)
+// [ ] Add seed hashing utilities
+
+using System;
+
+namespace Truchet.Tiles
+{
+    public sealed class GenerationSettings
+    {
+        public int Seed { get; }
+        public int Rows { get; }
+        public int Columns { get; }
+        public int Levels { get; }
+
+        public bool UsePerlin { get; }
+
+        // Perlin parameters
+        public double Frequency { get; }
+        public double Amplitude { get; }
+        public int Octaves { get; }
+
+        public GenerationSettings(
+            int seed,
+            int rows,
+            int columns,
+            int levels,
+            bool usePerlin = true,
+            double frequency = 4.0,
+            double amplitude = 1.0,
+            int octaves = 3)
+        {
+            Seed = seed;
+            Rows = rows;
+            Columns = columns;
+            Levels = levels;
+
+            UsePerlin = usePerlin;
+
+            Frequency = frequency;
+            Amplitude = amplitude;
+            Octaves = octaves;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Truchlib\GenerationSettings.cs ---
+
+
+--------------------------------------------------
+// --- Prompt ---
+
+You are continuing development of an existing module.
+
+Context:
+- I provide a blob of files representing the current implementation state.
+- The module already has working functionality.
+- There is an existing architecture and design philosophy (see included markdown).
+- Your task is to analyze and continue structured development.
+
+Your responsibilities:
+
+1. Code Review (Concise)
+   - Evaluate structure, architecture, cohesion, and clarity.
+   - Identify architectural weaknesses, coupling issues, or scalability risks.
+   - Do NOT rewrite everything unless necessary.
+   - Be precise and technical.
+
+2. Architecture Validation
+   - Validate alignment with the design markdown and stated constraints.
+   - Identify violations or future bottlenecks.
+
+3. Roadmap Construction
+   - Build a prioritized development roadmap.
+   - Group features into phases (Foundation / Extension / Advanced).
+   - Focus on extensibility and long-term scalability.
+
+4. Step-by-Step Implementation Mode
+   - Provide ONE implementation step per message.
+   - Each step must:
+        • Be small and focused
+        • Include reasoning
+        • Include full code listing for changed files
+        • Start each file/class with a TODO roadmap block
+   - After each step, stop and ask for confirmation before continuing.
+
+5. Development Constraints
+   - Favor modularity and separation of concerns.
+   - Avoid hidden coupling between systems.
+   - Avoid refresh-loop or asset pipeline side effects.
+   - Keep deterministic rebuild behavior.
+   - Design for future expansion (animation, metadata, addressables, etc.).
+
+6. Best Practices
+   - Recommend architectural patterns where applicable.
+   - Suggest refactors only if they improve extensibility.
+   - Avoid premature optimization.
+
+7. Communication Style
+   - Be concise.
+   - No filler.
+   - No long explanations unless necessary.
+   - High signal, low noise.
+   - Assume senior-level development context.
+
+8. Markdown Awareness
+   - Respect documented architecture rules.
+   - Do not contradict design constraints.
+   - If you suggest deviation, justify clearly.
+
+Important:
+This is an ongoing development session.
+Treat the current code as a living module, not a prototype.
+Build on it incrementally.

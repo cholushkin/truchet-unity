@@ -3,7 +3,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../Scri
 from Core.PromptContextCollector.PromptContextCollector import PromptContextCollector
 
 PromptContextCollector(
-    directories=["Unity/TruchetTiles/Core/Runtime/truchlib"],  # Wildcards and folders
+    directories=["Unity/TruchetTiles/Assets/Core/Runtime"],  # Wildcards and folders
     includes=["*.cs", "*.md"],
     files=[],
     ignores=[],
