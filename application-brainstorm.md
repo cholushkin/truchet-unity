@@ -1,82 +1,100 @@
-## Underwater Labyrinth
-- Multi-scale Truchet tiles form coral caves, underwater tunnels, and glowing current pathways.
-- Нужно убедиться что из каждой точки лабиринта есть доступ в другую точку. Твикнуть если это не так
 
-## Abstract UI Background System
-- Animated Truchet patterns used as dynamic menu, loading screen, or popup backgrounds.
-- ОБрамления под кнопки или окна используя тратчет тайлы
+# 🌊 Underwater Labyrinth
 
-## Alien Glyph Language
-- Connectivity-driven tiles generate a consistent, rule-based extraterrestrial writing system.
-- Вариант что тайлы двигаются в линию. Вторым слоем добавляются декоративные элементы елси надо
-- По принципу кернинга можно добавлять декоративные элементы соответсвующие парам двух символов
-- Можно применять для ввода кодов (стильно)
+* Multi-scale Truchet tiles form coral caves, underwater tunnels, and glowing current pathways.
+* Ensure that every point in the labyrinth is reachable from any other point.
+* Automatically detect disconnected regions and regenerate or rotate tiles to guarantee full connectivity.
+* Optional: Use current flow direction as gameplay guidance (subtle directional hints via tile orientation).
 
-Procedural Dungeon Generator
-Tile connectivity defines corridors and rooms, while subdivision creates hidden chambers within larger spaces.
+---
 
-Recursive Roguelike Map
-Each dungeon cell can subdivide into micro-rooms, creating layered exploration depth.
+# 🧩 Abstract UI Background System
 
-Adaptive Maze System
-The maze restructures itself dynamically using tile rotation and subdivision rules.
+* Animated Truchet patterns used as dynamic menu, loading screen, or popup backgrounds.
+* Frame UI buttons or windows using Truchet tile borders.
+* React to user input (hover, click, scroll) by subtly rotating or subdividing nearby tiles.
+* Theme-adaptive: change motif set based on game state (combat, calm, error, success).
 
-Sci-Fi City Road Network
-Tiles represent streets and intersections, generating futuristic urban layouts.
+---
 
-Cyberpunk Neon Grid World
-Connectivity masks define glowing data highways and city blocks in a stylized digital city.
+# 👽 Alien Glyph Language
 
-Underground Metro System Generator
-Tiles become rail connections, generating coherent subway networks.
+* Connectivity-driven tiles generate a consistent, rule-based extraterrestrial writing system.
+* Tiles move sequentially in a line to form words or phrases.
+* Decorative elements are added as a second layer if needed.
+* Use kerning-like rules: add decorative ligatures based on pairs of adjacent symbols.
+* Can be used stylishly for entering secret codes or passwords.
+* Different motif families represent different semantic categories (numbers, verbs, names).
 
-Procedural Cave System
-Noise-driven tile selection creates natural-looking cave tunnels with multi-scale branching.
+---
 
-Magical Ley Line Map
-Tile connections represent mystical energy flows across a fantasy world.
+# 🏰 Procedural Dungeon Generator
 
-Space Station Interior Layout
-Tiles define corridors and junctions, generating modular sci-fi station interiors.
+* Tile connectivity defines corridors and rooms, while subdivision creates hidden chambers within larger spaces.
+* Detect isolated “islands” (unreachable zones) and fill them with solid color or convert into secret rooms.
+* Connectivity graph can drive enemy spawn zones and patrol logic.
+* Subdivision depth can define room difficulty tiers.
 
-Puzzle Circuit Board Game
-Players rotate tiles to complete electrical or data circuits across recursive layers.
+---
 
-Tower Defense Path Generator
-Procedurally generate enemy paths with connectivity rules while keeping deterministic seed control.
+# 🗺 Recursive Roguelike Map
 
-Procedural Village Layout
-Use tile adjacency to define streets, courtyards, and building clusters.
+* Each dungeon cell can subdivide into micro-rooms, creating layered exploration depth.
+* Reveal deeper subdivisions only when player enters a macro cell.
+* Allow recursion-based secrets: rooms within rooms.
+* Different recursion depths affect loot rarity or biome type.
 
-Alien Hive Structure
-Recursive subdivision generates organic hive corridors and chambers.
+---
 
-Dynamic Territory Control Map
-Tiles represent regions whose connectivity visualizes political or faction influence.
+# 🔄 Adaptive Maze System
 
-Portal Network System
-Connectivity defines teleportation links across levels or dimensions.
+* The maze restructures itself dynamically using tile rotation and subdivision rules.
+* Rotate tiles in real time based on player position to open or close paths.
+* Difficulty scaling via increasing subdivision complexity.
+* Use parity rules to shift between two maze states (light/dark phase).
 
-Procedural Sewer System
-Tiles generate interconnected sewer tunnels beneath a city.
+---
 
-Forest Path Generator
-Connectivity defines winding trails in a stylized overworld map.
+# ✨ Magical Ley Line Map
 
-Hex-Grid Alternative Pathing System
-Use Truchet connectivity as a stylized alternative to traditional hex or square grids.
+* Tile connections represent mystical energy flows across a fantasy world.
+* Stronger connections glow brighter and pulse.
+* Parity inversion represents corrupted vs purified energy.
+* Subdivision reveals ancient hidden ley networks.
 
-Procedural Puzzle Room Generator
-Each room subdivides into smaller logic spaces, creating layered spatial puzzles.
+---
 
-Infinite Runner Track Generator
-Tile connectivity defines track curves and branching segments.
+# 🔌 Puzzle Circuit Board Game
 
-Strategy Game Supply Line System
-Tiles represent logistical connections between territories.
+* Players rotate tiles to complete electrical or data circuits across recursive layers.
+* Advanced pipe system with multi-scale routing.
+* Certain tiles require correct parity alignment to activate.
+* Introduce signal timing or phase-based puzzles using scale differences.
 
-Procedural Battlefield Map
-Multi-scale subdivision creates terrain zones inside larger strategic regions.
+---
 
-Recursive Platformer Level Layout
-Each macro platform can subdivide into micro traversal challenges.
+# ⬡ Hex-Grid Alternative Pathing System
+
+* Use Truchet connectivity as a stylized alternative to traditional hex or square grids.
+* Represent movement directions as curved paths rather than straight edges.
+* Hybrid system: square logic, organic visual feel.
+* Use motif types to encode terrain types (forest, water, lava).
+
+---
+
+# 🏃 Infinite Runner Track Generator
+
+* Tile connectivity defines track curves and branching segments.
+* Subdivision creates micro-obstacles within larger track pieces.
+* Guarantee forward path connectivity at generation time.
+* Rare subdivisions create bonus branches or secret shortcuts.
+
+---
+
+# 🕹 Recursive Platformer Level Layout
+
+* Each macro platform can subdivide into micro traversal challenges.
+* Hidden micro-platforms appear when player performs specific actions.
+* Subdivision depth influences platform density and traversal difficulty.
+* Tile connectivity defines jump arcs visually.
+
