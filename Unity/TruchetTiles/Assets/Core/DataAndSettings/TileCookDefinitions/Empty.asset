@@ -14,10 +14,31 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp-Editor::Truchet.TileCooking.TileCookDefinition
   Width: 256
   Height: 256
-  OutputFolder: Data/Tiles
+  IsWinged: 0
+  IsInversed: 0
+  OutputFolder: Core/Textures/Tiles
   Topology:
     north: 0
     east: 0
     south: 0
     west: 0
-  CommandScript: 
+  CommandScript: '// North node
+
+    ELP 0.5 1 0.2 0.2
+
+
+    // South node
+
+    ELP
+    0.5 0 0.2 0.2
+
+
+    // Left cap
+
+    ELP 0 0.5 0.2 0.2
+
+
+    // Right cap
+
+    ELP
+    1 0.5 0.2 0.2'

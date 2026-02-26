@@ -1,3 +1,6 @@
 [submodule "ScriptUtils"]
 	path = ScriptUtils
 	url = https://github.com/cholushkin/script-utils.git
+[submodule "CodingConvention"]
+	path = CodingConvention
+	url = https://github.com/cholushkin/coding-convention.git

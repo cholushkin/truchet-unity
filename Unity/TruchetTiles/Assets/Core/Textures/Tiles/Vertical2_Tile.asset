@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 24dfd5121b652844ca6d69a1b6b705e0, type: 3}
-  m_Name: Empty_Tile
+  m_Name: Vertical2_Tile
   m_EditorClassIdentifier: Assembly-CSharp::Truchet.Tiles.Tile
-  connectivityMask: 0
-  texture: {fileID: 2800000, guid: 9823d1d31d8c58d48819fdaddfab6699, type: 3}
+  connectivityMask: 5
+  texture: {fileID: 2800000, guid: ec6e7d622d3d37d44afa42797f78bdfc, type: 3}

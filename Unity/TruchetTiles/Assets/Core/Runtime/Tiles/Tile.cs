@@ -1,9 +1,11 @@
 // TODO ROADMAP:
 // [x] Runtime tile asset (texture + connectivity)
+// [x] PNG-based workflow (texture imported from disk)
 // [ ] Add normal map support
 // [ ] Add SDF texture support
-// [ ] Add GPU index support
 // [ ] Add metadata tags
+// [ ] Add addressables support
+
 
 using UnityEngine;
 

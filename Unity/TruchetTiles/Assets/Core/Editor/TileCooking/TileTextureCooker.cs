@@ -1,14 +1,11 @@
 // TODO ROADMAP:
 // [x] Parse command script
-// [x] Polymorphic rasterization dispatch
-// [x] Rectangle rasterization
-// [ ] Ellipse rasterization
-// [ ] Pie rasterization
-// [ ] Bezier rasterization
-// [ ] Anti-aliased rasterization
-// [ ] GPU RenderTexture backend
-// [ ] Atlas cooking
-// [ ] Batch cooking
+// [x] CPU rasterization backend
+// [x] Save PNG instead of Texture2D asset
+// [ ] Add compression options
+// [ ] Add atlas cooking
+// [ ] Add GPU RenderTexture backend
+// [ ] Add batch cooking
 
 using UnityEngine;
 using UnityEditor;
@@ -28,19 +25,30 @@ namespace Truchet.TileCooking
 
             string basePath = "Assets/" + definition.OutputFolder;
 
-            string texturePath = Path.Combine(basePath, definition.name + "_Tex.asset");
+            string pngPath = Path.Combine(basePath, definition.name + ".png");
             string tilePath = Path.Combine(basePath, definition.name + "_Tile.asset");
 
-            AssetDatabase.CreateAsset(texture, texturePath);
+            SavePNG(texture, pngPath);
+
+            AssetDatabase.Refresh();
+
+            Texture2D importedTexture =
+                AssetDatabase.LoadAssetAtPath<Texture2D>(pngPath);
 
             Tile tile = ScriptableObject.CreateInstance<Tile>();
             tile.connectivityMask = definition.Topology.Mask;
-            tile.texture = texture;
+            tile.texture = importedTexture;
 
             AssetDatabase.CreateAsset(tile, tilePath);
             AssetDatabase.SaveAssets();
 
             return tile;
+        }
+
+        private static void SavePNG(Texture2D texture, string path)
+        {
+            byte[] png = texture.EncodeToPNG();
+            File.WriteAllBytes(path, png);
         }
 
         private static void EnsureFolder(string relativeFolder)
@@ -63,6 +71,9 @@ namespace Truchet.TileCooking
                 }
             }
         }
+
+        // Rasterize() unchanged below
+
 
         private static Texture2D Rasterize(TileCookDefinition def)
         {
