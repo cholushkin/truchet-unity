@@ -242,7 +242,7 @@ GameObject:
   - component: {fileID: 112430459}
   - component: {fileID: 112430458}
   - component: {fileID: 112430456}
-  - component: {fileID: 112430457}
+  - component: {fileID: 112430460}
   m_Layer: 0
   m_Name: Quad
   m_TagString: Untagged
@@ -298,28 +298,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &112430457
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 112430455}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!33 &112430458
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -343,6 +321,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 631685608}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!64 &112430460
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 112430455}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &117793315
 GameObject:
   m_ObjectHideFlags: 0
@@ -465,13 +465,14 @@ GameObject:
   m_Component:
   - component: {fileID: 156585606}
   - component: {fileID: 156585605}
+  - component: {fileID: 156585607}
   m_Layer: 0
   m_Name: GridTestController (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &156585605
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -484,11 +485,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 4
+  _height: 4
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 1495838719}
+  _debugLines: 0
 --- !u!4 &156585606
 Transform:
   m_ObjectHideFlags: 0
@@ -505,6 +506,20 @@ Transform:
   - {fileID: 1495838722}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &156585607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 156585604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierRandom
+  _tileSet: {fileID: 11400000, guid: 91d9f639fad0de04bb16471208b455ac, type: 2}
+  _allowedRotations: 00000000010000000200000003000000
 --- !u!1 &268439232
 GameObject:
   m_ObjectHideFlags: 0
@@ -739,13 +754,14 @@ GameObject:
   m_Component:
   - component: {fileID: 631685608}
   - component: {fileID: 631685607}
+  - component: {fileID: 631685609}
   m_Layer: 0
   m_Name: GridTestController (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &631685607
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -758,11 +774,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 2
+  _height: 2
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 112430456}
+  _debugLines: 0
 --- !u!4 &631685608
 Transform:
   m_ObjectHideFlags: 0
@@ -779,6 +795,20 @@ Transform:
   - {fileID: 112430459}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &631685609
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 631685606}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.GridLayoutModifierRandom
+  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _allowedRotations: 00000000010000000200000003000000
 --- !u!1 &839421045
 GameObject:
   m_ObjectHideFlags: 0
@@ -789,13 +819,14 @@ GameObject:
   m_Component:
   - component: {fileID: 839421047}
   - component: {fileID: 839421046}
+  - component: {fileID: 839421048}
   m_Layer: 0
   m_Name: GridTestController (8)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &839421046
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -808,11 +839,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 4
+  _height: 4
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 1613521997}
+  _debugLines: 0
 --- !u!4 &839421047
 Transform:
   m_ObjectHideFlags: 0
@@ -829,6 +860,20 @@ Transform:
   - {fileID: 1613522000}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &839421048
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 839421045}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierRandom
+  _tileSet: {fileID: 11400000, guid: 91d9f639fad0de04bb16471208b455ac, type: 2}
+  _allowedRotations: 00000000010000000200000003000000
 --- !u!1 &914293638
 GameObject:
   m_ObjectHideFlags: 0
@@ -839,13 +884,14 @@ GameObject:
   m_Component:
   - component: {fileID: 914293640}
   - component: {fileID: 914293639}
+  - component: {fileID: 914293641}
   m_Layer: 0
   m_Name: GridTestController (7)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &914293639
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -858,11 +904,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 4
+  _height: 4
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 117793316}
+  _debugLines: 0
 --- !u!4 &914293640
 Transform:
   m_ObjectHideFlags: 0
@@ -879,6 +925,20 @@ Transform:
   - {fileID: 117793319}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &914293641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 914293638}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierRandom
+  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _allowedRotations: 0000000002000000
 --- !u!1 &1010329374
 GameObject:
   m_ObjectHideFlags: 0
@@ -889,13 +949,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1010329376}
   - component: {fileID: 1010329375}
+  - component: {fileID: 1010329377}
   m_Layer: 0
   m_Name: GridTestController (5)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1010329375
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -908,11 +969,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 4
+  _height: 4
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 268439233}
+  _debugLines: 0
 --- !u!4 &1010329376
 Transform:
   m_ObjectHideFlags: 0
@@ -929,6 +990,20 @@ Transform:
   - {fileID: 268439236}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1010329377
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1010329374}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierRandom
+  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _allowedRotations: 00000000010000000200000003000000
 --- !u!1 &1183117691
 GameObject:
   m_ObjectHideFlags: 0
@@ -940,7 +1015,7 @@ GameObject:
   - component: {fileID: 1183117695}
   - component: {fileID: 1183117694}
   - component: {fileID: 1183117692}
-  - component: {fileID: 1183117693}
+  - component: {fileID: 1183117696}
   m_Layer: 0
   m_Name: Quad
   m_TagString: Untagged
@@ -996,28 +1071,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &1183117693
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1183117691}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!33 &1183117694
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -1041,6 +1094,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1954004868}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!64 &1183117696
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1183117691}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &1375333376
 GameObject:
   m_ObjectHideFlags: 0
@@ -1078,7 +1153,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.5568628, g: 0.5568628, b: 0.5568628, a: 0}
+  m_BackGroundColor: {r: 0.84276724, g: 0.50619036, b: 0.50619036, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -1188,13 +1263,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1445686125}
   - component: {fileID: 1445686124}
+  - component: {fileID: 1445686126}
   m_Layer: 0
   m_Name: GridTestController (4)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1445686124
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1207,11 +1283,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 4
+  _height: 4
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 75458468}
+  _debugLines: 0
 --- !u!4 &1445686125
 Transform:
   m_ObjectHideFlags: 0
@@ -1228,6 +1304,20 @@ Transform:
   - {fileID: 75458471}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1445686126
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1445686123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierRandom
+  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _allowedRotations: 0100000003000000
 --- !u!1 &1495838718
 GameObject:
   m_ObjectHideFlags: 0
@@ -1589,13 +1679,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1851110686}
   - component: {fileID: 1851110685}
+  - component: {fileID: 1851110687}
   m_Layer: 0
   m_Name: GridTestController (3)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1851110685
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1608,11 +1699,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 4
+  _height: 4
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 334183149}
+  _debugLines: 0
 --- !u!4 &1851110686
 Transform:
   m_ObjectHideFlags: 0
@@ -1629,6 +1720,20 @@ Transform:
   - {fileID: 334183152}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1851110687
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1851110684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierRandom
+  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _allowedRotations: 0100000003000000
 --- !u!1 &1905798546
 GameObject:
   m_ObjectHideFlags: 0
@@ -1639,13 +1744,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1905798548}
   - component: {fileID: 1905798547}
+  - component: {fileID: 1905798549}
   m_Layer: 0
   m_Name: GridTestController (6)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1905798547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1658,11 +1764,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridTestController
-  _width: 8
-  _height: 8
+  _width: 4
+  _height: 4
   _tileResolution: 256
-  _tileSet: {fileID: 0}
-  _targetRenderer: {fileID: 0}
+  _targetRenderer: {fileID: 1913993706}
+  _debugLines: 0
 --- !u!4 &1905798548
 Transform:
   m_ObjectHideFlags: 0
@@ -1679,6 +1785,20 @@ Transform:
   - {fileID: 1913993709}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1905798549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1905798546}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierRandom
+  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _allowedRotations: 0000000002000000
 --- !u!1 &1913993705
 GameObject:
   m_ObjectHideFlags: 0
@@ -1802,6 +1922,7 @@ GameObject:
   - component: {fileID: 1954004868}
   - component: {fileID: 1954004867}
   - component: {fileID: 1954004869}
+  - component: {fileID: 1954004870}
   m_Layer: 0
   m_Name: GridTestController
   m_TagString: Untagged
@@ -1824,8 +1945,8 @@ MonoBehaviour:
   _width: 8
   _height: 8
   _tileResolution: 256
-  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
   _targetRenderer: {fileID: 1183117692}
+  _debugLines: 1
 --- !u!4 &1954004868
 Transform:
   m_ObjectHideFlags: 0
@@ -1855,6 +1976,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Truchet.GridLayoutModifierRandom
   _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _allowedRotations: 00000000010000000200000003000000
+--- !u!114 &1954004870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1954004866}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a23dca702679b1a4c91a1885983a6c37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileMapModifierDirectionPattern
+  _tileSet: {fileID: 11400000, guid: 3ae7691237cab97469ce22d066da5cd8, type: 2}
+  _rotationPattern: 'UD
+
+    RLLR
+
+    LLLL'
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

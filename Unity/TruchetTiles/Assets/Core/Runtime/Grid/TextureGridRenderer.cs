@@ -1,21 +1,16 @@
 // TODO ROADMAP:
 // [x] CPU texture compositing renderer
-// [x] Rotation support (0, 90, 180, 270)
-// [x] TileSet sourced from layout
+// [x] Multi-TileSet support
 // [ ] Add dirty-region updates
 // [ ] Add chunked rendering
 // [ ] Add GPU backend swap
 // [ ] Add multiscale support
-// [ ] Add tile caching (avoid repeated GetPixels allocations)
+// [ ] Add tile caching
 
 using UnityEngine;
 
 namespace Truchet
 {
-    /// <summary>
-    /// Renders entire grid into a single Texture2D.
-    /// Deterministic CPU compositing backend.
-    /// </summary>
     public class TextureGridRenderer
     {
         private readonly int _tileResolution;
@@ -25,30 +20,18 @@ namespace Truchet
             _tileResolution = tileResolution;
         }
 
-        /// <summary>
-        /// Renders the provided layout into a single texture.
-        /// </summary>
-        public Texture2D Render(RegularGridLayout layout)
+        public Texture2D Render(IGridLayout layout, TileSet[] tileSets, bool debugLines)
         {
-            if (layout == null)
-            {
-                Debug.LogError("TextureGridRenderer: Layout is null.");
-                return null;
-            }
-
-            if (layout.TileSet == null || layout.TileSet.tiles == null)
-            {
-                Debug.LogError("TextureGridRenderer: TileSet is not assigned in layout.");
-                return null;
-            }
-
             int width = layout.Width * _tileResolution;
             int height = layout.Height * _tileResolution;
 
-            Texture2D output = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            Texture2D output =
+                new Texture2D(width, height, TextureFormat.RGBA32, false);
+
             Color[] pixels = new Color[width * height];
 
-            FillBackground(pixels);
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = Color.white;
 
             for (int y = 0; y < layout.Height; y++)
             {
@@ -56,12 +39,26 @@ namespace Truchet
                 {
                     GridCell cell = layout.GetCell(x, y);
 
-                    if (!IsValidTileIndex(layout, cell.TileIndex))
+                    if (cell.TileSetId < 0 ||
+                        cell.TileSetId >= tileSets.Length)
                         continue;
 
-                    BlitTile(layout, pixels, width, x, y, cell.TileIndex, cell.Rotation);
+                    TileSet tileSet = tileSets[cell.TileSetId];
+
+                    if (cell.TileIndex < 0 ||
+                        cell.TileIndex >= tileSet.tiles.Length)
+                        continue;
+
+                    BlitTile(tileSet.tiles[cell.TileIndex],
+                             pixels, width, x, y, cell.Rotation);
+                    
+                    if (debugLines)
+                        DrawCellDebugLines(pixels, width, x, y);
                 }
             }
+
+            if (debugLines)
+                DrawAxis(pixels, width, height);
 
             output.SetPixels(pixels);
             output.Apply();
@@ -69,64 +66,31 @@ namespace Truchet
             return output;
         }
 
-        #region Internal
-
-        private void FillBackground(Color[] pixels)
-        {
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                pixels[i] = Color.white;
-            }
-        }
-
-        private bool IsValidTileIndex(RegularGridLayout layout, int index)
-        {
-            return index >= 0 && index < layout.TileSet.tiles.Length;
-        }
-
         private void BlitTile(
-            RegularGridLayout layout,
+            Tile tile,
             Color[] target,
             int targetWidth,
             int gridX,
             int gridY,
-            int tileIndex,
             int rotation)
         {
-            Tile tile = layout.TileSet.tiles[tileIndex];
-
             if (tile == null || tile.texture == null)
-            {
-                Debug.LogError($"No tile in tileset with index {tileIndex}");
                 return;
-            }
 
-            Texture2D texture = tile.texture;
-
-            if (texture.width != _tileResolution || texture.height != _tileResolution)
-            {
-                Debug.LogError("Tile resolution mismatch.");
-                return;
-            }
-
-            Color[] source = texture.GetPixels();
+            Color[] source = tile.texture.GetPixels();
 
             int startX = gridX * _tileResolution;
             int startY = gridY * _tileResolution;
 
             for (int y = 0; y < _tileResolution; y++)
+            for (int x = 0; x < _tileResolution; x++)
             {
-                for (int x = 0; x < _tileResolution; x++)
-                {
-                    int srcIndex = GetRotatedIndex(x, y, rotation);
+                int srcIndex = GetRotatedIndex(x, y, rotation);
 
-                    int tx = startX + x;
-                    int ty = startY + y;
+                int tx = startX + x;
+                int ty = startY + y;
 
-                    int dstIndex = ty * targetWidth + tx;
-
-                    target[dstIndex] = source[srcIndex];
-                }
+                target[ty * targetWidth + tx] = source[srcIndex];
             }
         }
 
@@ -134,25 +98,60 @@ namespace Truchet
         {
             switch (rotation % 4)
             {
-                case 0:
-                    return y * _tileResolution + x;
-
-                case 1:
-                    return (_tileResolution - 1 - x) * _tileResolution + y;
-
-                case 2:
-                    return (_tileResolution - 1 - y) * _tileResolution +
-                           (_tileResolution - 1 - x);
-
-                case 3:
-                    return x * _tileResolution +
-                           (_tileResolution - 1 - y);
-
-                default:
-                    return y * _tileResolution + x;
+                case 0: return y * _tileResolution + x;
+                case 1: return (_tileResolution - 1 - x) * _tileResolution + y;
+                case 2: return (_tileResolution - 1 - y) * _tileResolution +
+                               (_tileResolution - 1 - x);
+                case 3: return x * _tileResolution +
+                               (_tileResolution - 1 - y);
+                default: return y * _tileResolution + x;
             }
         }
+        
+        private void DrawAxis(Color[] pixels, int width, int height)
+        {
+            int size = Mathf.Min(32, width / 6);
 
-        #endregion
+            int originX = 4;
+            int originY = 4;
+
+            for (int i = 0; i < size; i++)
+            {
+                int x = originX + i;
+                int y = originY;
+
+                if (x >= 0 && x < width && y >= 0 && y < height)
+                    pixels[y * width + x] = Color.red;
+            }
+
+            for (int i = 0; i < size; i++)
+            {
+                int x = originX;
+                int y = originY + i;
+
+                if (x >= 0 && x < width && y >= 0 && y < height)
+                    pixels[y * width + x] = Color.green;
+            }
+        }
+        
+        private void DrawCellDebugLines(
+            Color[] pixels,
+            int targetWidth,
+            int gridX,
+            int gridY)
+        {
+            int startX = gridX * _tileResolution;
+            int startY = gridY * _tileResolution;
+
+            int rightX = startX + _tileResolution - 1;
+            int bottomY = startY + _tileResolution - 1;
+
+            for (int y = startY; y < startY + _tileResolution; y++)
+                pixels[y * targetWidth + rightX] = Color.green;
+
+            for (int x = startX; x < startX + _tileResolution; x++)
+                pixels[bottomY * targetWidth + x] = Color.green;
+        }
+
     }
 }

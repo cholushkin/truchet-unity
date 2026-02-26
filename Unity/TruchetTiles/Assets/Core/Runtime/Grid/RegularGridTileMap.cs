@@ -1,6 +1,6 @@
 // TODO ROADMAP:
 // [x] Basic rectangular grid implementation
-// [x] TileSet stored in layout
+// [x] Renamed from RegularGridLayout
 // [ ] Add neighbor query API
 // [ ] Add iteration helpers
 // [ ] Add deterministic fill utilities
@@ -8,34 +8,23 @@
 
 namespace Truchet
 {
-    /// <summary>
-    /// Standard rectangular grid.
-    /// Deterministic and memory-contiguous.
-    /// </summary>
-    public class RegularGridLayout
+    public class RegularGridTileMap : IGridLayout
     {
         private readonly GridCell[,] _cells;
 
         public int Width { get; }
         public int Height { get; }
 
-        public TileSet TileSet { get; }
-
-        public RegularGridLayout(int width, int height, TileSet tileSet)
+        public RegularGridTileMap(int width, int height)
         {
             Width = width;
             Height = height;
-            TileSet = tileSet;
 
             _cells = new GridCell[width, height];
 
             for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    _cells[x, y] = new GridCell(x, y);
-                }
-            }
+            for (int x = 0; x < width; x++)
+                _cells[x, y] = new GridCell(x, y);
         }
 
         public bool IsValid(int x, int y)
@@ -51,14 +40,16 @@ namespace Truchet
             return _cells[x, y];
         }
 
-        public void SetTileIndex(int x, int y, int tileIndex, int rotation)
+        public void SetTile(int x, int y, int tileSetId, int tileIndex, int rotation)
         {
             if (!IsValid(x, y))
                 return;
 
             GridCell cell = _cells[x, y];
+            cell.TileSetId = tileSetId;
             cell.TileIndex = tileIndex;
             cell.Rotation = rotation;
+
             _cells[x, y] = cell;
         }
     }

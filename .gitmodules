@@ -4,3 +4,6 @@
 [submodule "CodingConvention"]
 	path = CodingConvention
 	url = https://github.com/cholushkin/coding-convention.git
+[submodule "Unity/TruchetTiles/Assets/Libs/gamelib"]
+	path = Unity/TruchetTiles/Assets/Libs/gamelib
+	url = https://github.com/cholushkin/gamelib.git
