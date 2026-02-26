@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
     [CreateAssetMenu(
         fileName = "TileCookDefinition",

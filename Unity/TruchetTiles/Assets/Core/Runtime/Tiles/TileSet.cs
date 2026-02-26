@@ -7,7 +7,7 @@
 
 using UnityEngine;
 
-namespace Truchet.Tiles
+namespace Truchet
 {
     [CreateAssetMenu(
         fileName = "TileSet",

@@ -1,6 +1,7 @@
 // TODO ROADMAP:
 // [x] CPU texture compositing renderer
 // [x] Rotation support (0, 90, 180, 270)
+// [x] TileSet sourced from layout
 // [ ] Add dirty-region updates
 // [ ] Add chunked rendering
 // [ ] Add GPU backend swap
@@ -8,9 +9,8 @@
 // [ ] Add tile caching (avoid repeated GetPixels allocations)
 
 using UnityEngine;
-using Truchet.Tiles;
 
-namespace Truchet.Grid
+namespace Truchet
 {
     /// <summary>
     /// Renders entire grid into a single Texture2D.
@@ -18,19 +18,17 @@ namespace Truchet.Grid
     /// </summary>
     public class TextureGridRenderer
     {
-        private readonly TileSet _tileSet;
         private readonly int _tileResolution;
 
-        public TextureGridRenderer(TileSet tileSet, int tileResolution)
+        public TextureGridRenderer(int tileResolution)
         {
-            _tileSet = tileSet;
             _tileResolution = tileResolution;
         }
 
         /// <summary>
         /// Renders the provided layout into a single texture.
         /// </summary>
-        public Texture2D Render(IGridLayout layout)
+        public Texture2D Render(RegularGridLayout layout)
         {
             if (layout == null)
             {
@@ -38,9 +36,9 @@ namespace Truchet.Grid
                 return null;
             }
 
-            if (_tileSet == null || _tileSet.tiles == null)
+            if (layout.TileSet == null || layout.TileSet.tiles == null)
             {
-                Debug.LogError("TextureGridRenderer: TileSet is not assigned.");
+                Debug.LogError("TextureGridRenderer: TileSet is not assigned in layout.");
                 return null;
             }
 
@@ -58,10 +56,10 @@ namespace Truchet.Grid
                 {
                     GridCell cell = layout.GetCell(x, y);
 
-                    if (!IsValidTileIndex(cell.TileIndex))
+                    if (!IsValidTileIndex(layout, cell.TileIndex))
                         continue;
 
-                    BlitTile(pixels, width, x, y, cell.TileIndex, cell.Rotation);
+                    BlitTile(layout, pixels, width, x, y, cell.TileIndex, cell.Rotation);
                 }
             }
 
@@ -81,12 +79,13 @@ namespace Truchet.Grid
             }
         }
 
-        private bool IsValidTileIndex(int index)
+        private bool IsValidTileIndex(RegularGridLayout layout, int index)
         {
-            return index >= 0 && index < _tileSet.tiles.Length;
+            return index >= 0 && index < layout.TileSet.tiles.Length;
         }
 
         private void BlitTile(
+            RegularGridLayout layout,
             Color[] target,
             int targetWidth,
             int gridX,
@@ -94,7 +93,7 @@ namespace Truchet.Grid
             int tileIndex,
             int rotation)
         {
-            Tile tile = _tileSet.tiles[tileIndex];
+            Tile tile = layout.TileSet.tiles[tileIndex];
 
             if (tile == null || tile.texture == null)
             {
@@ -120,6 +119,7 @@ namespace Truchet.Grid
                 for (int x = 0; x < _tileResolution; x++)
                 {
                     int srcIndex = GetRotatedIndex(x, y, rotation);
+
                     int tx = startX + x;
                     int ty = startY + y;
 
@@ -134,17 +134,17 @@ namespace Truchet.Grid
         {
             switch (rotation % 4)
             {
-                case 0: // 0°
+                case 0:
                     return y * _tileResolution + x;
 
-                case 1: // 90°
+                case 1:
                     return (_tileResolution - 1 - x) * _tileResolution + y;
 
-                case 2: // 180°
+                case 2:
                     return (_tileResolution - 1 - y) * _tileResolution +
                            (_tileResolution - 1 - x);
 
-                case 3: // 270°
+                case 3:
                     return x * _tileResolution +
                            (_tileResolution - 1 - y);
 

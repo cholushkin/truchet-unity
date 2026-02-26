@@ -8,7 +8,7 @@
 
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
     internal abstract class TileRenderInstruction
     {

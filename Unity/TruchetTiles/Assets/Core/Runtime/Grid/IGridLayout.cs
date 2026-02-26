@@ -7,7 +7,7 @@
 
 using UnityEngine;
 
-namespace Truchet.Grid
+namespace Truchet
 {
     /// <summary>
     /// Pure topology abstraction.

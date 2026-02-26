@@ -9,7 +9,7 @@
 
 using UnityEngine;
 
-namespace Truchet.Tiles
+namespace Truchet
 {
     [CreateAssetMenu(
         fileName = "Tile",
@@ -21,5 +21,8 @@ namespace Truchet.Tiles
         public int connectivityMask;
 
         public Texture2D texture;
+        
+        // todo: make an editor where user can define matrix of cells to approximate tile 
+        public string MarchingSquareApproximation;
     }
 }

@@ -6,7 +6,7 @@
 
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
     [System.Serializable]
     public struct TileTopology

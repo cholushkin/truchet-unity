@@ -5,7 +5,7 @@
 // [ ] Add flags (blocked, reserved, etc.)
 // [ ] Add multiscale support hook
 
-namespace Truchet.Grid
+namespace Truchet
 {
     /// <summary>
     /// Logical grid cell.

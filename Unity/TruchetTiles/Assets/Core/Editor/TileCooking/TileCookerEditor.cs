@@ -8,7 +8,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
     [CustomEditor(typeof(TileCookDefinition))]
     public class TileCookerEditor : Editor

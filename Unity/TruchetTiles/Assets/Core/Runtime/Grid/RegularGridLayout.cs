@@ -1,29 +1,31 @@
 // TODO ROADMAP:
 // [x] Basic rectangular grid implementation
+// [x] TileSet stored in layout
 // [ ] Add neighbor query API
 // [ ] Add iteration helpers
 // [ ] Add deterministic fill utilities
 // [ ] Add resize support
 
-using UnityEngine;
-
-namespace Truchet.Grid
+namespace Truchet
 {
     /// <summary>
     /// Standard rectangular grid.
     /// Deterministic and memory-contiguous.
     /// </summary>
-    public class RegularGridLayout : IGridLayout
+    public class RegularGridLayout
     {
         private readonly GridCell[,] _cells;
 
         public int Width { get; }
         public int Height { get; }
 
-        public RegularGridLayout(int width, int height)
+        public TileSet TileSet { get; }
+
+        public RegularGridLayout(int width, int height, TileSet tileSet)
         {
             Width = width;
             Height = height;
+            TileSet = tileSet;
 
             _cells = new GridCell[width, height];
 
@@ -59,6 +61,5 @@ namespace Truchet.Grid
             cell.Rotation = rotation;
             _cells[x, y] = cell;
         }
-
     }
 }
