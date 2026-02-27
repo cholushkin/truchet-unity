@@ -15,9 +15,6 @@ namespace Truchet
         [Header("Winged Mode")]
         public bool IsWinged;
 
-        public bool IsInversed;
-        
-
         [Header("Output Folder (relative to Assets/)")]
         public string OutputFolder = "Core/Textures/Tiles";
 
