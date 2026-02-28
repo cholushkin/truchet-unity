@@ -35,11 +35,17 @@ namespace Truchet
 
         private readonly List<QuadNode> _nodes = new List<QuadNode>();
         private readonly Stack<int> _freeIndices = new Stack<int>();
+        
+        private readonly int _logicalWidth;
+        private readonly int _logicalHeight;
 
         private bool _isUniformDepth;
         private int _uniformDepth;
 
         public int NodeCount => _nodes.Count;
+        public int LogicalWidth => _logicalWidth;
+        public int LogicalHeight => _logicalHeight;
+
 
         public int LeafCount
         {
@@ -60,8 +66,14 @@ namespace Truchet
 
         // --------------------------------------------------
 
-        public QuadTreeTileMap(float size = 1f)
+        public QuadTreeTileMap(
+            float size = 1f,
+            int logicalWidth = 8,
+            int logicalHeight = 8)
         {
+            _logicalWidth = logicalWidth;
+            _logicalHeight = logicalHeight;
+
             _nodes.Add(new QuadNode
             {
                 X = 0f,

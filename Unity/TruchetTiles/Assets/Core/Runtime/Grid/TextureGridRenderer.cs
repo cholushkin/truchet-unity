@@ -1,6 +1,9 @@
 // TODO ROADMAP:
 // [x] CPU texture compositing renderer
 // [x] Multi-TileSet support
+// [x] Two-pass rendering (classical + winged)
+// [x] Winged tile overlap support
+// [x] Transparent background (only tiles visible)
 // [ ] Add dirty-region updates
 // [ ] Add chunked rendering
 // [ ] Add GPU backend swap
@@ -30,8 +33,18 @@ namespace Truchet
 
             Color[] pixels = new Color[width * height];
 
+            // --------------------------------------------------
+            // Transparent background
+            // --------------------------------------------------
+
+            Color clear = new Color(0, 0, 0, 0);
+
             for (int i = 0; i < pixels.Length; i++)
-                pixels[i] = Color.white;
+                pixels[i] = clear;
+
+            // --------------------------------------------------
+            // PASS 1 — Classical Tiles
+            // --------------------------------------------------
 
             for (int y = 0; y < layout.Height; y++)
             {
@@ -39,21 +52,33 @@ namespace Truchet
                 {
                     GridCell cell = layout.GetCell(x, y);
 
-                    if (cell.TileSetId < 0 ||
-                        cell.TileSetId >= tileSets.Length)
+                    if (!IsValidCell(cell, tileSets, out Tile tile))
                         continue;
 
-                    TileSet tileSet = tileSets[cell.TileSetId];
-
-                    if (cell.TileIndex < 0 ||
-                        cell.TileIndex >= tileSet.tiles.Length)
+                    if (tile.IsWinged)
                         continue;
 
-                    BlitTile(tileSet.tiles[cell.TileIndex],
-                             pixels, width, x, y, cell.Rotation);
-                    
-                    if (debugLines)
-                        DrawCellDebugLines(pixels, width, x, y);
+                    BlitClassic(tile, pixels, width, x, y, cell.Rotation);
+                }
+            }
+
+            // --------------------------------------------------
+            // PASS 2 — Winged Tiles
+            // --------------------------------------------------
+
+            for (int y = 0; y < layout.Height; y++)
+            {
+                for (int x = 0; x < layout.Width; x++)
+                {
+                    GridCell cell = layout.GetCell(x, y);
+
+                    if (!IsValidCell(cell, tileSets, out Tile tile))
+                        continue;
+
+                    if (!tile.IsWinged)
+                        continue;
+
+                    BlitWinged(tile, pixels, width, height, x, y, cell.Rotation);
                 }
             }
 
@@ -66,7 +91,37 @@ namespace Truchet
             return output;
         }
 
-        private void BlitTile(
+        // --------------------------------------------------
+        // Helpers
+        // --------------------------------------------------
+
+        private bool IsValidCell(GridCell cell, TileSet[] tileSets, out Tile tile)
+        {
+            tile = null;
+
+            if (cell.TileSetId < 0 ||
+                cell.TileSetId >= tileSets.Length)
+                return false;
+
+            TileSet tileSet = tileSets[cell.TileSetId];
+
+            if (cell.TileIndex < 0 ||
+                cell.TileIndex >= tileSet.tiles.Length)
+                return false;
+
+            tile = tileSet.tiles[cell.TileIndex];
+
+            if (tile == null || tile.texture == null)
+                return false;
+
+            return true;
+        }
+
+        // --------------------------------------------------
+        // Classical Blit
+        // --------------------------------------------------
+
+        private void BlitClassic(
             Tile tile,
             Color[] target,
             int targetWidth,
@@ -74,9 +129,6 @@ namespace Truchet
             int gridY,
             int rotation)
         {
-            if (tile == null || tile.texture == null)
-                return;
-
             Color[] source = tile.texture.GetPixels();
 
             int startX = gridX * _tileResolution;
@@ -90,24 +142,88 @@ namespace Truchet
                 int tx = startX + x;
                 int ty = startY + y;
 
-                target[ty * targetWidth + tx] = source[srcIndex];
+                Color c = source[srcIndex];
+
+                if (c.a <= 0f)
+                    continue;
+
+                target[ty * targetWidth + tx] = c;
             }
         }
 
+        // --------------------------------------------------
+        // Winged Blit
+        // --------------------------------------------------
+
+        private void BlitWinged(
+            Tile tile,
+            Color[] target,
+            int targetWidth,
+            int targetHeight,
+            int gridX,
+            int gridY,
+            int rotation)
+        {
+            Texture2D tex = tile.texture;
+            Color[] source = tex.GetPixels();
+
+            int renderSize = _tileResolution * 2;
+
+            int centerX = gridX * _tileResolution + _tileResolution / 2;
+            int centerY = gridY * _tileResolution + _tileResolution / 2;
+
+            int startX = centerX - _tileResolution;
+            int startY = centerY - _tileResolution;
+
+            int sourceRes = tex.width;
+
+            for (int y = 0; y < renderSize; y++)
+            {
+                for (int x = 0; x < renderSize; x++)
+                {
+                    int tx = startX + x;
+                    int ty = startY + y;
+
+                    if (tx < 0 || tx >= targetWidth ||
+                        ty < 0 || ty >= targetHeight)
+                        continue;
+
+                    int srcX = Mathf.FloorToInt((float)x / renderSize * sourceRes);
+                    int srcY = Mathf.FloorToInt((float)y / renderSize * sourceRes);
+
+                    int srcIndex = GetRotatedIndex(srcX, srcY, rotation, sourceRes);
+
+                    Color c = source[srcIndex];
+
+                    if (c.a <= 0f)
+                        continue;
+
+                    target[ty * targetWidth + tx] = c;
+                }
+            }
+        }
+
+        // --------------------------------------------------
+
         private int GetRotatedIndex(int x, int y, int rotation)
+        {
+            return GetRotatedIndex(x, y, rotation, _tileResolution);
+        }
+
+        private int GetRotatedIndex(int x, int y, int rotation, int resolution)
         {
             switch (rotation % 4)
             {
-                case 0: return y * _tileResolution + x;
-                case 1: return (_tileResolution - 1 - x) * _tileResolution + y;
-                case 2: return (_tileResolution - 1 - y) * _tileResolution +
-                               (_tileResolution - 1 - x);
-                case 3: return x * _tileResolution +
-                               (_tileResolution - 1 - y);
-                default: return y * _tileResolution + x;
+                case 0: return y * resolution + x;
+                case 1: return (resolution - 1 - x) * resolution + y;
+                case 2: return (resolution - 1 - y) * resolution +
+                               (resolution - 1 - x);
+                case 3: return x * resolution +
+                               (resolution - 1 - y);
+                default: return y * resolution + x;
             }
         }
-        
+
         private void DrawAxis(Color[] pixels, int width, int height)
         {
             int size = Mathf.Min(32, width / 6);
@@ -133,25 +249,5 @@ namespace Truchet
                     pixels[y * width + x] = Color.green;
             }
         }
-        
-        private void DrawCellDebugLines(
-            Color[] pixels,
-            int targetWidth,
-            int gridX,
-            int gridY)
-        {
-            int startX = gridX * _tileResolution;
-            int startY = gridY * _tileResolution;
-
-            int rightX = startX + _tileResolution - 1;
-            int bottomY = startY + _tileResolution - 1;
-
-            for (int y = startY; y < startY + _tileResolution; y++)
-                pixels[y * targetWidth + rightX] = Color.green;
-
-            for (int x = startX; x < startX + _tileResolution; x++)
-                pixels[bottomY * targetWidth + x] = Color.green;
-        }
-
     }
 }

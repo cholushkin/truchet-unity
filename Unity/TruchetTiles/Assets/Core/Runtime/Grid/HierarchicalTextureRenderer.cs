@@ -45,8 +45,10 @@ namespace Truchet
 
             Color[] pixels = new Color[resolution * resolution];
 
+            Color clear = new Color(0, 0, 0, 0);
+
             for (int i = 0; i < pixels.Length; i++)
-                pixels[i] = Color.white;
+                pixels[i] = clear;
 
             List<QuadNodeInfo> leaves = new List<QuadNodeInfo>();
 

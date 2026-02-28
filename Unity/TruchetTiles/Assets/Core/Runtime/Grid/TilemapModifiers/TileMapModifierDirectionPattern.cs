@@ -15,12 +15,12 @@ namespace Truchet
         [ResizableTextArea]
         [SerializeField] private string _rotationPattern;
 
-        public override void Apply(RegularGridTileMap map)
+        public override void Apply(IGridLayout layout)
         {
             if (!enabled)
                 return;
-            
-            if (map == null || _tileSet == null || _tileSet.tiles == null)
+
+            if (_tileSet == null || _tileSet.tiles == null)
                 return;
 
             if (string.IsNullOrWhiteSpace(_rotationPattern))
@@ -30,25 +30,26 @@ namespace Truchet
                 .Replace("\r", "")
                 .Split('\n');
 
-            for (int y = 0; y < map.Height; y++)
-            {
-                if (rows.Length == 0)
-                    break;
+            if (rows.Length == 0)
+                return;
 
+            GetClampedRegion(layout, out int startX, out int startY, out int endX, out int endY);
+
+            for (int y = startY; y < endY; y++)
+            {
                 string rowPattern = rows[y % rows.Length];
 
                 if (string.IsNullOrEmpty(rowPattern))
                     continue;
 
-                for (int x = 0; x < map.Width; x++)
+                for (int x = startX; x < endX; x++)
                 {
                     char c = rowPattern[x % rowPattern.Length];
 
                     int rotation = DirectionToRotation(c);
-
                     int tileIndex = x % _tileSet.tiles.Length;
 
-                    map.SetTile(x, y, TileSetId, tileIndex, rotation);
+                    layout.SetTile(x, y, TileSetId, tileIndex, rotation);
                 }
             }
         }

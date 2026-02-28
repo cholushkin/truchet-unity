@@ -58,8 +58,10 @@ namespace Truchet
 
         private void RenderRegularGrid()
         {
-            RegularGridTileMap map =
-                new RegularGridTileMap(_width, _height);
+            QuadTreeTileMap map = new QuadTreeTileMap(
+                1f,
+                _width,
+                _height);
 
             TileMapModifier[] modifiers =
                 GetComponents<TileMapModifier>();
@@ -100,8 +102,8 @@ namespace Truchet
         {
             QuadTreeTileMap map = new QuadTreeTileMap(1f);
 
-            var modifiers =
-                GetComponents<QuadTreeSubdivisionModifierRandom>();
+            TileMapModifier[] modifiers =
+                GetComponents<TileMapModifier>();
 
             List<TileSet> tileSets = new List<TileSet>();
 
@@ -134,7 +136,17 @@ namespace Truchet
             Texture2D progressiveTexture =
                 new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
 
-            // IMPORTANT: assign BEFORE rendering starts
+            // CLEAR IT BEFORE ASSIGNING
+            Color[] clearPixels = new Color[resolution * resolution];
+            Color clear = new Color(0, 0, 0, 0);
+
+            for (int i = 0; i < clearPixels.Length; i++)
+                clearPixels[i] = clear;
+
+            progressiveTexture.SetPixels(clearPixels);
+            progressiveTexture.Apply();
+
+            // Assign AFTER clearing
             _targetRenderer.material.mainTexture = progressiveTexture;
 
             await renderer.RenderAsync(

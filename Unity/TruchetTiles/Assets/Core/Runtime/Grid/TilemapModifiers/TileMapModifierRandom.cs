@@ -1,11 +1,12 @@
 // TODO ROADMAP:
 // [x] Component-based random layout modifier
 // [x] Multi-TileSet support
+// [x] Allowed rotation index control
+// [x] Inherit region support from base class
 // [ ] Add deterministic seed support
 // [ ] Add weighted tile selection
 // [ ] Add adjacency-aware randomization
 // [ ] Add tile filtering
-// [x] Allowed rotation index control
 
 using UnityEngine;
 
@@ -14,21 +15,24 @@ namespace Truchet
     public class TileMapModifierRandom : TileMapModifier
     {
         [SerializeField] private int[] _allowedRotations = { 0, 1, 2, 3 };
-
-        public override void Apply(RegularGridTileMap map)
+        
+        
+        public override void Apply(IGridLayout layout)
         {
             if (!enabled)
                 return;
-            
-            if (map == null || _tileSet == null || _tileSet.tiles == null)
+
+            if (_tileSet == null || _tileSet.tiles == null)
                 return;
 
             bool useCustomRotations =
                 _allowedRotations != null && _allowedRotations.Length > 0;
 
-            for (int y = 0; y < map.Height; y++)
+            GetClampedRegion(layout, out int startX, out int startY, out int endX, out int endY);
+
+            for (int y = startY; y < endY; y++)
             {
-                for (int x = 0; x < map.Width; x++)
+                for (int x = startX; x < endX; x++)
                 {
                     int tileIndex = Random.Range(0, _tileSet.tiles.Length);
 
@@ -44,7 +48,7 @@ namespace Truchet
                         rotation = Random.Range(0, 4);
                     }
 
-                    map.SetTile(x, y, TileSetId, tileIndex, rotation);
+                    layout.SetTile(x, y, TileSetId, tileIndex, rotation);
                 }
             }
         }

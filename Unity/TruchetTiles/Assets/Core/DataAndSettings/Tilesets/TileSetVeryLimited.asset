@@ -14,3 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Truchet.Tiles.TileSet
   tiles:
   - {fileID: 11400000, guid: 7b5a7299b242c7c4c84aa440e4a79de2, type: 2}
+  - {fileID: 11400000, guid: 05bd7af366dfc5e488916304fdabe99e, type: 2}
