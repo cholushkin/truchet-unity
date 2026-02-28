@@ -10,23 +10,60 @@
 // [ ] Add multiscale support
 // [ ] Add tile caching
 
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Truchet
 {
-    public class TextureGridRenderer
+    public class RegularGridInstanceGenerator
     {
-        private readonly int _tileResolution;
+        private readonly int _tileSizePixels;
 
-        public TextureGridRenderer(int tileResolution)
+        public RegularGridInstanceGenerator(int tileSizePixels)
         {
-            _tileResolution = tileResolution;
+            _tileSizePixels = tileSizePixels;
+        }
+
+        public List<TileInstanceGPU> GenerateInstances(
+            IGridLayout layout,
+            TileSet[] tileSets)
+        {
+            List<TileInstanceGPU> instances = new List<TileInstanceGPU>();
+
+            for (int y = 0; y < layout.Height; y++)
+            {
+                for (int x = 0; x < layout.Width; x++)
+                {
+                    GridCell cell = layout.GetCell(x, y);
+
+                    if (!IsValidCell(cell, tileSets, out Tile tile))
+                        continue;
+
+                    float tileSize = _tileSizePixels;
+
+                    Vector2 center = new Vector2(
+                        x * tileSize + tileSize * 0.5f,
+                        y * tileSize + tileSize * 0.5f);
+
+                    Matrix4x4 matrix =
+                        TileMatrixBuilder.Build(center, tileSize, cell.Rotation);
+
+                    instances.Add(new TileInstanceGPU
+                    {
+                        transform = matrix,
+                        motifIndex = (uint)cell.TileIndex,
+                        level = 0
+                    });
+                }
+            }
+
+            return instances;
         }
 
         public Texture2D Render(IGridLayout layout, TileSet[] tileSets, bool debugLines)
         {
-            int width = layout.Width * _tileResolution;
-            int height = layout.Height * _tileResolution;
+            int width = layout.Width * _tileSizePixels;
+            int height = layout.Height * _tileSizePixels;
 
             Texture2D output =
                 new Texture2D(width, height, TextureFormat.RGBA32, false);
@@ -131,11 +168,11 @@ namespace Truchet
         {
             Color[] source = tile.texture.GetPixels();
 
-            int startX = gridX * _tileResolution;
-            int startY = gridY * _tileResolution;
+            int startX = gridX * _tileSizePixels;
+            int startY = gridY * _tileSizePixels;
 
-            for (int y = 0; y < _tileResolution; y++)
-            for (int x = 0; x < _tileResolution; x++)
+            for (int y = 0; y < _tileSizePixels; y++)
+            for (int x = 0; x < _tileSizePixels; x++)
             {
                 int srcIndex = GetRotatedIndex(x, y, rotation);
 
@@ -167,13 +204,13 @@ namespace Truchet
             Texture2D tex = tile.texture;
             Color[] source = tex.GetPixels();
 
-            int renderSize = _tileResolution * 2;
+            int renderSize = _tileSizePixels * 2;
 
-            int centerX = gridX * _tileResolution + _tileResolution / 2;
-            int centerY = gridY * _tileResolution + _tileResolution / 2;
+            int centerX = gridX * _tileSizePixels + _tileSizePixels / 2;
+            int centerY = gridY * _tileSizePixels + _tileSizePixels / 2;
 
-            int startX = centerX - _tileResolution;
-            int startY = centerY - _tileResolution;
+            int startX = centerX - _tileSizePixels;
+            int startY = centerY - _tileSizePixels;
 
             int sourceRes = tex.width;
 
@@ -207,7 +244,7 @@ namespace Truchet
 
         private int GetRotatedIndex(int x, int y, int rotation)
         {
-            return GetRotatedIndex(x, y, rotation, _tileResolution);
+            return GetRotatedIndex(x, y, rotation, _tileSizePixels);
         }
 
         private int GetRotatedIndex(int x, int y, int rotation, int resolution)

@@ -15,33 +15,80 @@ using UnityEngine.InputSystem;
 
 namespace Truchet
 {
-    public class HierarchicalTextureRenderer
+    public class QuadTreeInstanceGenerator
     {
-        private readonly int _baseResolution;
+        private readonly int _canvasResolution;
 
         private readonly bool _debugStep;
         private readonly int _debugDelayMs;
         private readonly bool _waitForKey;
 
-        public HierarchicalTextureRenderer(
-            int baseResolution,
+        public QuadTreeInstanceGenerator(
+            int canvasResolution,
             bool debugStep = false,
             int debugDelayMs = 0,
             bool waitForKey = false)
         {
-            _baseResolution = baseResolution;
+            _canvasResolution = canvasResolution;
             _debugStep = debugStep;
             _debugDelayMs = debugDelayMs;
             _waitForKey = waitForKey;
         }
 
+        public List<TileInstanceGPU> GenerateInstances(
+            IHierarchicalTileLayout layout,
+            TileSet[] tileSets,
+            int resolution)
+        {
+            List<TileInstanceGPU> instances = new List<TileInstanceGPU>();
+
+            foreach (int index in layout.GetLeafIndices())
+            {
+                QuadNodeInfo node = layout.GetNode(index);
+
+                if (!node.IsActive)
+                    continue;
+
+                if (node.TileSetId < 0 ||
+                    node.TileSetId >= tileSets.Length)
+                    continue;
+
+                TileSet tileSet = tileSets[node.TileSetId];
+
+                if (node.TileIndex < 0 ||
+                    node.TileIndex >= tileSet.tiles.Length)
+                    continue;
+
+                float nodeSizePx = node.Size * resolution;
+
+                Vector2 center = new Vector2(
+                    (node.X + node.Size * 0.5f) * resolution,
+                    (node.Y + node.Size * 0.5f) * resolution);
+
+                // Winged logic preserved: 2x logical size
+                float renderSize = nodeSizePx * 2f;
+
+                Matrix4x4 matrix =
+                    TileMatrixBuilder.Build(center, renderSize, node.Rotation);
+
+                instances.Add(new TileInstanceGPU
+                {
+                    transform = matrix,
+                    motifIndex = (uint)node.TileIndex,
+                    level = (uint)node.Level
+                });
+            }
+
+            return instances;
+        }
+        
         public async UniTask RenderAsync(
             IHierarchicalTileLayout layout,
             TileSet[] tileSets,
             Texture2D output,
             CancellationToken token = default)
         {
-            int resolution = _baseResolution;
+            int resolution = _canvasResolution;
 
             Color[] pixels = new Color[resolution * resolution];
 

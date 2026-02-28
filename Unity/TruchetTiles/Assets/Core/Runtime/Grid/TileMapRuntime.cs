@@ -18,6 +18,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using NaughtyAttributes;
+using UnityEngine.Serialization;
 
 namespace Truchet
 {
@@ -27,13 +28,13 @@ namespace Truchet
         QuadTree
     }
 
-    public class TileMapController : MonoBehaviour
+    public class TileMapRuntime : MonoBehaviour
     {
         [Header("Layout")] [SerializeField] private LayoutMode _layoutMode = LayoutMode.QuadTree;
         [SerializeField] private int _width = 8;
         [SerializeField] private int _height = 8;
 
-        [Header("Rendering")] [SerializeField] private int _tileResolution = 256;
+        [Header("Rendering")] [SerializeField] private int _tileSizePixels = 256;
         [SerializeField] private Renderer _targetRenderer;
         [SerializeField] private bool _debugLines;
 
@@ -58,10 +59,8 @@ namespace Truchet
 
         private void RenderRegularGrid()
         {
-            QuadTreeTileMap map = new QuadTreeTileMap(
-                1f,
-                _width,
-                _height);
+            RegularGridTileMap map =
+                new RegularGridTileMap(_width, _height);
 
             TileMapModifier[] modifiers =
                 GetComponents<TileMapModifier>();
@@ -85,8 +84,8 @@ namespace Truchet
                     mod.Apply(map);
             }
 
-            TextureGridRenderer renderer =
-                new TextureGridRenderer(_tileResolution);
+            RegularGridInstanceGenerator renderer =
+                new RegularGridInstanceGenerator(_tileSizePixels);
 
             Texture2D result =
                 renderer.Render(map, tileSets.ToArray(), _debugLines);
@@ -124,14 +123,14 @@ namespace Truchet
                     mod.Apply(map);
             }
 
-            var renderer = new HierarchicalTextureRenderer(
-                _tileResolution * _width,
+            var renderer = new QuadTreeInstanceGenerator(
+                _tileSizePixels * _width,
                 debugStep: false, // enable debug
                 debugDelayMs: 200, // 200ms per tile
                 waitForKey: true // or true for manual stepping
             );
 
-            int resolution = _tileResolution * _width;
+            int resolution = _tileSizePixels * _width;
 
             Texture2D progressiveTexture =
                 new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
