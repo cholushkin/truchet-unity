@@ -1,115 +1,108 @@
 // TODO ROADMAP:
-// [x] LayoutMode selection (Regular / QuadTree)
-// [x] Renderer selection per layout type
-// [x] Support QuadTreeSubdivisionModifierRandom
-// [ ] Deterministic global seed support
-// [ ] Regenerate button (Editor & Runtime)
-// [ ] Abstract modifier interface for both layout types
-// [ ] GPU renderer switch (InstancedIndirect)
-// [ ] Parity-aware rendering integration
-// [ ] Inspector layout settings struct
-// [ ] Live preview in editor (ExecuteInEditMode)
-// [ ] Layout serialization support
-// [ ] Runtime rebuild without reallocating textures
-// [ ] Chunked rendering for large outputs
-// [ ] Frustum-aware hierarchical rendering
-// [ ] Debug overlay toggle for node levels
+// [x] Layout generation
+// [x] Composition layer integration
+// [x] GPU instanced renderer
+// [ ] Add visual mode switch
+// [ ] Add SDF shader integration
+// [ ] Add marching squares renderer
 
 using UnityEngine;
 using System.Collections.Generic;
 using NaughtyAttributes;
-using UnityEngine.Serialization;
 
 namespace Truchet
 {
-    public enum LayoutMode
-    {
-        RegularGrid,
-        QuadTree
-    }
-
     public class TileMapRuntime : MonoBehaviour
     {
-        [Header("Layout")] [SerializeField] private LayoutMode _layoutMode = LayoutMode.QuadTree;
+        public enum LayoutMode
+        {
+            RegularGrid,
+            QuadTree
+        }
+        
+        [Header("Layout")]
+        [SerializeField] private LayoutMode _layoutMode = LayoutMode.QuadTree;
         [SerializeField] private int _width = 8;
         [SerializeField] private int _height = 8;
 
-        [Header("Rendering")] [SerializeField] private int _tileSizePixels = 256;
-        [SerializeField] private Renderer _targetRenderer;
-        [SerializeField] private bool _debugLines;
+        [Header("Rendering")]
+        [SerializeField] private int _tileSizePixels = 256;
+        [SerializeField] private Material _gpuMaterial;
+
+        private ITileCompositionStrategy _compositionStrategy;
+        private IRenderBackend _renderBackend;
 
         [Button]
         private void Start()
         {
+            _compositionStrategy =
+                new MotifInstanceCompositionStrategy();
+
+            _renderBackend =
+                new GPUInstancedRenderBackend(_gpuMaterial);
+
             switch (_layoutMode)
             {
                 case LayoutMode.RegularGrid:
-                    RenderRegularGrid();
+                    GenerateRegularGrid();
                     break;
 
                 case LayoutMode.QuadTree:
-                    RenderQuadTree();
+                    GenerateQuadTree();
                     break;
             }
         }
 
-        // --------------------------------------------------
-        // Regular Grid Path
-        // --------------------------------------------------
-
-        private void RenderRegularGrid()
+        private void GenerateRegularGrid()
         {
             RegularGridTileMap map =
                 new RegularGridTileMap(_width, _height);
 
-            TileMapModifier[] modifiers =
-                GetComponents<TileMapModifier>();
-
-            List<TileSet> tileSets = new List<TileSet>();
-
-            for (int i = 0; i < modifiers.Length; i++)
-            {
-                var mod = modifiers[i];
-
-                if (mod.TileSet == null)
-                    continue;
-
-                mod.TileSetId = tileSets.Count;
-                tileSets.Add(mod.TileSet);
-            }
+            var (tileSets, modifiers) = CollectModifiers();
 
             foreach (var mod in modifiers)
-            {
-                if (mod.enabled)
-                    mod.Apply(map);
-            }
+                mod.Apply(map);
 
-            RegularGridInstanceGenerator renderer =
-                new RegularGridInstanceGenerator(_tileSizePixels);
+            int resolution = _width * _tileSizePixels;
 
-            Texture2D result =
-                renderer.Render(map, tileSets.ToArray(), _debugLines);
+            List<TileInstanceGPU> instances =
+                _compositionStrategy.ComposeInstances(
+                    map,
+                    tileSets,
+                    resolution);
 
-            _targetRenderer.material.mainTexture = result;
+            _renderBackend.RenderInstances(instances, resolution);
         }
 
-        // --------------------------------------------------
-        // QuadTree Path
-        // --------------------------------------------------
-
-        private async void RenderQuadTree()
+        private void GenerateQuadTree()
         {
             QuadTreeTileMap map = new QuadTreeTileMap(1f);
 
+            var (tileSets, modifiers) = CollectModifiers();
+
+            foreach (var mod in modifiers)
+                mod.Apply(map);
+
+            int resolution = _width * _tileSizePixels;
+
+            List<TileInstanceGPU> instances =
+                _compositionStrategy.ComposeInstances(
+                    map,
+                    tileSets,
+                    resolution);
+
+            _renderBackend.RenderInstances(instances, resolution);
+        }
+
+        private (TileSet[], TileMapModifier[]) CollectModifiers()
+        {
             TileMapModifier[] modifiers =
                 GetComponents<TileMapModifier>();
 
             List<TileSet> tileSets = new List<TileSet>();
 
-            for (int i = 0; i < modifiers.Length; i++)
+            foreach (var mod in modifiers)
             {
-                var mod = modifiers[i];
-
                 if (mod.TileSet == null)
                     continue;
 
@@ -117,41 +110,7 @@ namespace Truchet
                 tileSets.Add(mod.TileSet);
             }
 
-            foreach (var mod in modifiers)
-            {
-                if (mod.enabled)
-                    mod.Apply(map);
-            }
-
-            var renderer = new QuadTreeInstanceGenerator(
-                _tileSizePixels * _width,
-                debugStep: false, // enable debug
-                debugDelayMs: 200, // 200ms per tile
-                waitForKey: true // or true for manual stepping
-            );
-
-            int resolution = _tileSizePixels * _width;
-
-            Texture2D progressiveTexture =
-                new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
-
-            // CLEAR IT BEFORE ASSIGNING
-            Color[] clearPixels = new Color[resolution * resolution];
-            Color clear = new Color(0, 0, 0, 0);
-
-            for (int i = 0; i < clearPixels.Length; i++)
-                clearPixels[i] = clear;
-
-            progressiveTexture.SetPixels(clearPixels);
-            progressiveTexture.Apply();
-
-            // Assign AFTER clearing
-            _targetRenderer.material.mainTexture = progressiveTexture;
-
-            await renderer.RenderAsync(
-                map,
-                tileSets.ToArray(),
-                progressiveTexture);
+            return (tileSets.ToArray(), modifiers);
         }
     }
 }
