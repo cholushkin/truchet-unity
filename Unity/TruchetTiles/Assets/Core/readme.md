@@ -1,4 +1,4 @@
-# Truchet Core --- GPU-Driven Multiscale Tile System
+# Truchet Core --- GPU-Driven Procedural Tile System
 
 ## Overview
 
@@ -7,7 +7,7 @@ for:
 
 -   Large-scale procedural tiling (100k+ tiles)
 -   Hierarchical QuadTree layouts
--   SDF-based tile motifs
+-   Binary motif-based tile rendering
 -   GPU instanced rendering
 -   Marching Squares field composition
 -   Deterministic structural behavior
@@ -15,161 +15,253 @@ for:
 The system separates **topology**, **composition**, and **rendering**
 into clean architectural layers.
 
+The core philosophy:
+
+Topology → Composition → Rendering
+
+Layout determines **where tiles exist**, composition determines **how
+they are interpreted**, and rendering determines **how they are drawn**.
+
 ------------------------------------------------------------------------
 
-## Architectural Layers
+# Architectural Layers
 
-### 1. Layout Layer (Topology)
+## 1. Layout Layer (Topology)
 
-Responsible only for spatial structure and tile indexing.
+Responsible only for **spatial structure and tile indexing**.
+
+Supported layouts:
 
 -   Regular Grid (uniform resolution)
 -   Adaptive QuadTree (mixed-depth hierarchy)
+
+Features:
+
 -   Stable node indices
--   Deterministic subdivision
+-   Deterministic subdivision and collapse
+-   Spatial traversal access
+-   Mutable structure
 -   No rendering logic
 -   No texture ownership
 
-Layout defines *where* tiles exist --- not how they are drawn.
+Layout defines **tile placement only**, never visual appearance.
 
 ------------------------------------------------------------------------
 
-### 2. Composition Layer
+## 2. Composition Layer
 
-Transforms layout data into renderable geometry or instances.
+Transforms layout data into **renderable structures**.
 
-Interface: `ITileCompositionStrategy`
+Interface:
 
-Implementations:
+ITileCompositionStrategy
 
--   **Motif Instanced Composition**
-    -   Produces per-tile GPU instance data
-    -   Supports winged tiles
-    -   Supports multiscale rendering
-    -   Level-based parity logic
--   **Marching Squares Composition**
-    -   Converts scalar field into mesh geometry
-    -   Generates seamless surfaces
-    -   Works from SDF or discrete field data
-    -   Resolution independent
-    -   LOD compatible
+Composition interprets layout data and produces **renderer-agnostic
+results**.
 
-Composition layer owns topology interpretation.
+Current strategies:
+
+### Motif Instance Composition
+
+Produces **GPU instance data** for each tile.
+
+Capabilities:
+
+-   GPU instanced tile rendering
+-   Multi-scale tile support
+-   Rotation-aware transforms
+-   Compatible with Grid and QuadTree layouts
+
+### Marching Squares Composition (Planned)
+
+Converts tile layouts into **continuous mesh geometry**.
+
+Pipeline:
+
+Layout → Scalar Field → Marching Squares → Mesh
+
+Capabilities:
+
+-   Continuous surface generation
+-   Mesh output independent of tile boundaries
+-   LOD compatible
+-   QuadTree compatible
+
+Composition layer **never renders**.
 
 ------------------------------------------------------------------------
 
-### 3. Rendering Layer (GPU Only)
+## 3. Rendering Layer (GPU Only)
 
-Responsible only for drawing prepared data.
+Responsible for **drawing prepared composition results**.
 
-Interface: `IRenderBackend`
+Interface:
+
+IRenderBackend
 
 Primary backend:
 
--   **GPU Instanced Renderer**
-    -   Graphics.DrawMeshInstancedIndirect
-    -   StructuredBuffer`<TileInstanceGPU>`{=html}
-    -   Indirect argument buffers
-    -   Single quad mesh for motifs
-    -   Shader-driven logic
-    -   No CPU texture compositing
+### GPU Instanced Renderer
 
-Renderer never queries layout directly.
+Features:
 
-------------------------------------------------------------------------
+-   Graphics.DrawMeshInstancedIndirect
+-   StructuredBuffer`<TileInstanceGPU>`{=html}
+-   Indirect draw argument buffers
+-   Single quad mesh reused for all tiles
+-   Texture2DArray motif sampling
+-   Minimal CPU overhead
 
-## Tile Model
-
-Each Tile asset may contain:
-
--   Connectivity mask (NESW bitmask)
--   SDF representation (preferred)
--   Optional texture fallback
--   Winged flag for multiscale overlap
-
-Tiles are data descriptors --- not rendering logic.
+Renderer **never queries layout directly**.
 
 ------------------------------------------------------------------------
 
-## SDF-Driven Motif System
+# Tile Model
 
-Signed Distance Fields enable:
+A tile is a **visual motif descriptor**.
 
--   Resolution independence
--   Smooth edges
--   Shader-based parity inversion
--   Dynamic animation potential
--   Procedural blending
--   Marching Squares field generation
+Tiles do not encode adjacency rules or topology.
 
-SDF is the canonical motif representation.
+Each tile contains:
+
+Tile ├ Texture2D texture └ bool IsWinged
+
+Tiles represent **visual motifs only**.
+
+All spatial logic lives in the **layout layer**.
 
 ------------------------------------------------------------------------
 
-## Marching Squares Field System
+# Motif Texture System
 
-The system supports generating continuous surfaces from tile data:
+Tiles are stored as **binary motif textures**.
+
+Characteristics:
+
+-   Black / white motif shapes
+-   Deterministic rasterization
+-   Texture2DArray GPU sampling
+-   Instanced rendering per tile
+
+Motif textures are generated using the **Tile Cooking pipeline**.
+
+------------------------------------------------------------------------
+
+# Tile Cooking Pipeline
+
+Tiles are procedurally generated from **command scripts**.
+
+Example pipeline:
+
+TileCookDefinition ↓ Instruction Script ↓ Rasterizer ↓ PNG Texture ↓
+Tile Asset
+
+Instruction types include:
+
+-   Rectangle
+-   Ellipse
+-   Pie segments
+-   Bezier curves
+
+Advantages:
+
+-   Deterministic tile generation
+-   Artist-controlled procedural motifs
+-   No manual texture painting required
+
+------------------------------------------------------------------------
+
+# Marching Squares Field System
+
+The system supports generating **continuous mesh surfaces** from tile
+layouts.
+
+Pipeline:
 
 Layout → Scalar Field → Threshold → Mesh
 
 Capabilities:
 
 -   Continuous geometry generation
--   Seamless blending across tiles
+-   Seamless tile blending
 -   GPU-friendly mesh output
 -   LOD scalable
--   Compatible with QuadTree hierarchy
+-   Compatible with QuadTree layouts
 
-Marching Squares operates at composition level, not rendering level.
+Marching Squares operates at the **composition layer**, not the
+rendering layer.
 
 ------------------------------------------------------------------------
 
-## Multiscale & Hierarchical Support
+# Multiscale & Hierarchical Support
 
--   True QuadTree structure
--   Mixed-depth rendering
+The system supports hierarchical layouts via **QuadTrees**.
+
+Features:
+
+-   Mixed-depth tiles
+-   Adaptive subdivision
 -   Level-based scaling
--   Winged tile overlap support
--   Future frustum-based culling
--   GPU-driven LOD compatibility
+-   Winged tiles for overlap
+-   Future view-dependent LOD
+
+This enables efficient rendering of **large procedural tile worlds**.
 
 ------------------------------------------------------------------------
 
-## Determinism & Mutability
+# Determinism & Mutability
+
+Core design principles:
 
 -   Stable node identity
--   Explicit subdivision / collapse
+-   Explicit subdivision and collapse
 -   No implicit rebuilds
--   Modifiers own procedural logic
--   Layout remains passive container
+-   Deterministic layout mutation
+-   Modifiers own procedural generation
+-   Layout remains a passive container
+
+Structure only changes through explicit operations.
 
 ------------------------------------------------------------------------
 
-## Performance Characteristics
+# Performance Characteristics
 
-Designed for:
+Designed for large-scale procedural rendering:
 
--   100k+ tiles
--   Indirect instancing
--   GPU-side motif logic
+-   100k+ tile instances
+-   GPU instanced rendering
 -   Minimal CPU allocations
--   Burst-compatible future extensions
+-   Persistent GPU buffers
+-   Indirect drawing
+-   Scalable hierarchical layouts
+
+The architecture is designed to remain **GPU-driven and CPU-light**.
 
 ------------------------------------------------------------------------
 
-## Final Feature Set
+# Final Feature Set
 
--   GPU instanced motif rendering
--   SDF-based tile system
--   Marching Squares surface generation
--   Regular Grid + Adaptive QuadTree layouts
+-   GPU instanced tile motif rendering
+-   Procedural tile cooking system
+-   Regular Grid and QuadTree layouts
 -   Composition abstraction layer
--   Deterministic structural mutation
+-   Marching Squares mesh generation
+-   Deterministic topology mutation
 -   Winged multiscale tiles
--   Shader-driven visual logic
--   Extensible backend architecture
+-   Indirect GPU rendering pipeline
+-   Extensible rendering backends
 
 ------------------------------------------------------------------------
 
-Truchet Core is a scalable, modular foundation for procedural tiling,
-field-based rendering, and multiscale GPU-driven composition.
+# Summary
+
+Truchet Core is a scalable, modular foundation for:
+
+-   Procedural tiling systems
+-   GPU-driven rendering pipelines
+-   Hierarchical spatial layouts
+-   Large-scale tile worlds
+
+The architecture focuses on **clean separation of topology, composition,
+and rendering**, enabling extensibility and high performance for
+procedural tile generation.

@@ -185,6 +185,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &75458469
 MeshCollider:
@@ -297,6 +298,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &112430458
 MeshFilter:
@@ -409,6 +411,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &117793317
 MeshCollider:
@@ -472,7 +475,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &156585605
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -488,9 +491,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 4
   _height: 4
-  _tileResolution: 256
-  _targetRenderer: {fileID: 1495838719}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &156585606
 Transform:
   m_ObjectHideFlags: 0
@@ -589,6 +591,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &268439234
 MeshCollider:
@@ -701,6 +704,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &334183150
 MeshCollider:
@@ -764,7 +768,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &631685607
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -780,9 +784,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 2
   _height: 2
-  _tileResolution: 256
-  _targetRenderer: {fileID: 112430456}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &631685608
 Transform:
   m_ObjectHideFlags: 0
@@ -832,7 +835,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &839421046
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -848,9 +851,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 4
   _height: 4
-  _tileResolution: 256
-  _targetRenderer: {fileID: 1613521997}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &839421047
 Transform:
   m_ObjectHideFlags: 0
@@ -900,7 +902,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &914293639
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -916,9 +918,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 4
   _height: 4
-  _tileResolution: 256
-  _targetRenderer: {fileID: 117793316}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &914293640
 Transform:
   m_ObjectHideFlags: 0
@@ -968,7 +969,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1010329375
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -984,9 +985,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 4
   _height: 4
-  _tileResolution: 256
-  _targetRenderer: {fileID: 268439233}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &1010329376
 Transform:
   m_ObjectHideFlags: 0
@@ -1063,7 +1063,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 965661b26d1c9cd4390dabeba80eafeb, type: 2}
+  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1085,6 +1085,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &1183117694
 MeshFilter:
@@ -1285,7 +1286,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1445686124
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1301,9 +1302,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 4
   _height: 4
-  _tileResolution: 256
-  _targetRenderer: {fileID: 75458468}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &1445686125
 Transform:
   m_ObjectHideFlags: 0
@@ -1402,6 +1402,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &1495838720
 MeshCollider:
@@ -1514,6 +1515,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &1613521998
 MeshCollider:
@@ -1615,14 +1617,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1633681726}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Intensity: 7
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 0
     m_Resolution: -1
@@ -1704,7 +1706,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1851110685
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1720,9 +1722,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 4
   _height: 4
-  _tileResolution: 256
-  _targetRenderer: {fileID: 334183149}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &1851110686
 Transform:
   m_ObjectHideFlags: 0
@@ -1772,7 +1773,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1905798547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1788,9 +1789,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 4
   _height: 4
-  _tileResolution: 256
-  _targetRenderer: {fileID: 1913993706}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 0}
 --- !u!4 &1905798548
 Transform:
   m_ObjectHideFlags: 0
@@ -1889,6 +1889,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!64 &1913993707
 MeshCollider:
@@ -1969,9 +1970,8 @@ MonoBehaviour:
   _layoutMode: 0
   _width: 8
   _height: 8
-  _tileResolution: 256
-  _targetRenderer: {fileID: 1183117692}
-  _debugLines: 0
+  _tileSizePixels: 256
+  _gpuMaterial: {fileID: 2100000, guid: 965661b26d1c9cd4390dabeba80eafeb, type: 2}
 --- !u!4 &1954004868
 Transform:
   m_ObjectHideFlags: 0

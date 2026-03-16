@@ -13,11 +13,16 @@ using UnityEngine.Rendering;
 
 namespace Truchet
 {
-    public class GPUInstancedRenderBackend : IRenderBackend, System.IDisposable
+    public class GPUInstancedRenderBackend : IRenderBackend
     {
+        
+        private static readonly int TileArrayID =
+            Shader.PropertyToID("_TileArray");
+        
+        
         private ComputeBuffer _instanceBuffer;
         private ComputeBuffer _argsBuffer;
-
+        private MaterialPropertyBlock _mpb;
         private readonly Mesh _quadMesh;
         private readonly Material _material;
 
@@ -34,24 +39,33 @@ namespace Truchet
             CreateArgsBuffer();
         }
 
+        
+        public void SetTileTextureArray(Texture2DArray array)
+        {
+            _material.SetTexture(TileArrayID, array);
+        }
+
         public void RenderInstances(
             List<TileInstanceGPU> instances,
             int resolution)
         {
             if (instances == null || instances.Count == 0)
                 return;
+            
+            Debug.Log("RenderInstances called with " + instances.Count);
 
             EnsureCapacity(instances.Count);
 
             _instanceBuffer.SetData(instances);
 
+// bind directly on material
             _material.SetBuffer(InstancesID, _instanceBuffer);
 
             UpdateArgsBuffer(instances.Count);
 
             Bounds bounds = new Bounds(
-                new Vector3(resolution * 0.5f, resolution * 0.5f, 0f),
-                new Vector3(resolution, resolution, 10f));
+                Vector3.zero,
+                Vector3.one * 100000f);
 
             Graphics.DrawMeshInstancedIndirect(
                 _quadMesh,
@@ -66,7 +80,10 @@ namespace Truchet
             if (required <= _capacity)
                 return;
 
-            int stride = sizeof(float) * 16 + sizeof(uint) * 2;
+            Debug.Log("Creating instance buffer with capacity " + required);
+            
+            //int stride = sizeof(float) * 16 + sizeof(uint) * 2;
+            int stride = 80;
 
             _instanceBuffer?.Release();
 
@@ -128,11 +145,15 @@ namespace Truchet
 
             return mesh;
         }
-
-        public void Dispose()
-        {
-            _instanceBuffer?.Release();
-            _argsBuffer?.Release();
-        }
+        
+        
+        //
+        // public void Dispose()
+        // {
+        //     _instanceBuffer?.Release();
+        //     _argsBuffer?.Release();
+        //     _instanceBuffer = null;
+        //     _argsBuffer = null;
+        // }
     }
 }

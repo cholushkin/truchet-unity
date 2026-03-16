@@ -1,349 +1,87 @@
 // --- Source Blob ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\GPUTileRendering.cs ---
+Files included:
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\IGridLayout.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTreeInstanceGenerator.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap-readme.md
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap.cs
+- Unity\TruchetTiles\Assets\Core\Shaders\GPUInstancedTile.shader
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\IHierarchicalTileLayout.cs
+- Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\Direction.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Rendering\Backends\IRenderBackend.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridCell.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifier.cs
+- Unity\TruchetTiles\Assets\Core\readme.md
+- Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCommandParser.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridTileMap.cs
+- Unity\TruchetTiles\Assets\Core\Shaders\GPUInstancedTile_Stab.shader
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierRandom.cs
+- Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadNodeInfo.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\QuadTreeSubdivisionModifierRandom.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Composition\ICompositionResult.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridInstanceGenerator.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Composition\MotifInstanceCompositionStrategy.cs
+- Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTextureCooker.cs
+- Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookerEditor.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierDirectionPattern.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Rendering\Backends\GPUInstancedRenderBackend.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Rendering\TileSetTextureArrayBuilder.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileSet.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Composition\MeshCompositionResult.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Rendering\GPUTileRendering.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Grid\TileMapRuntime.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Composition\ITileCompositionStrategy.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Tiles\Tile.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Composition\MarchingSquaresCompositionStrategy.cs
+- Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileTopology.cs
+
+--------------------------------------------------
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IGridLayout.cs ---
+
+// TODO ROADMAP:
+// [x] Define grid abstraction interface
+// [x] Add SetTile support
+// [ ] Add coordinate helpers
+// [ ] Add neighbor query helpers
+// [ ] Add bounds validation helpers
+// [ ] Add serialization support if needed
 
 using UnityEngine;
 
 namespace Truchet
 {
-    // GPU-ready instance representation
-    public struct TileInstanceGPU
+    /// <summary>
+    /// Pure topology abstraction.
+    /// Defines spatial indexing without rendering concerns.
+    /// </summary>
+    public interface IGridLayout
     {
-        public Matrix4x4 transform;
-        public uint motifIndex;
-        public uint level;
-    }
+        int Width { get; }
+        int Height { get; }
 
-    // Centralized transform builder
-    public static class TileMatrixBuilder
-    {
-        public static Matrix4x4 Build(
-            Vector2 center,
-            float size,
-            int rotation90)
-        {
-            float rotation = rotation90 * 90f;
+        bool IsValid(int x, int y);
 
-            return Matrix4x4.TRS(
-                new Vector3(center.x, center.y, 0f),
-                Quaternion.Euler(0f, 0f, rotation),
-                new Vector3(size, size, 1f)
-            );
-        }
+        GridCell GetCell(int x, int y);
+
+        void SetTile(int x, int y, int tileSetId, int tileIndex, int rotation);
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\GPUTileRendering.cs ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\readme.md ---
-
-# Truchet Tiles -- Multiscale & Winged Rendering System
-
-## Overview
-
-This module provides a scalable tile generation and rendering system
-designed for:
-
--   Efficient GPU-driven rendering
--   True hierarchical QuadTree (not flat list)
--   Efficient subdivision logic
--   Clean data-oriented structures
--   Designed for large tile counts
--   Deterministic rebuild behavior
--   Editor-time tile baking pipeline
--   Support for both multiscale winged tiles and regular grids
-
-The system is divided into two primary layers:
-
-1.  Editor-time Tile Cooking
-2.  Runtime Placement & Rendering
-
-------------------------------------------------------------------------
-
-# Winged Tile Definition
-
-The direct method uses the "winged" tiles illustrated in Figure 3 of the
-original paper.
-
-A winged tile consists of:
-
--   The content of the tile inside a square boundary
--   "Wings" that extend outside the square to complete the motif
--   The square boundary is conceptual; wings intentionally exceed it
--   The gray background often shown in diagrams is not part of the tile
--   Wing shapes are arbitrary but stylistically consistent within a
-    motif set
-
-This allows seamless multiscale composition while maintaining visual
-continuity across boundaries.
-
-------------------------------------------------------------------------
-
-# Editor-Time Tile Cooking
-
-## Purpose
-
-Prepare tile assets once, use many times at runtime.
-
-## Pipeline
-
-TileCookDefinition (ScriptableObject) → Command Script (DSL) →
-TileCommandParser → TileRenderInstructions → TileTextureCooker → Tile
-(Texture + Connectivity)
-
-## Command DSL Example
-
-ELP 0.5 1 0.2 0.2\
-ELP 1 0.5 0.2 0.2\
-BZR 0.5 1 0.5 0.75 0.75 0.5 1 0.5 0.15
-
-Supported primitives:
-
--   RCT -- Rectangle
--   ELP -- Ellipse
--   PIE -- Pie slice
--   BZR -- Cubic Bezier with thickness
-
-This enables:
-
--   Winged tiles
--   Classic Truchet tiles
--   Arbitrary motifs
--   Future SDF export
--   GPU baking in future
-
-------------------------------------------------------------------------
-
-# Runtime Architecture
-
-Runtime does NOT generate textures.
-
-Runtime consumes baked tiles and focuses on:
-
--   Placement
--   Subdivision
--   Transform generation
--   GPU rendering
-
-------------------------------------------------------------------------
-
-# Core Runtime Data Model
-
-``` csharp
-struct TileInstance
-{
-    public float4x4 transform;
-    public int motifIndex;
-    public int level;
-}
-```
-
-Design rationale:
-
--   transform → world transform
--   motifIndex → index into TileSet
--   level → subdivision depth / parity / LOD
-
-No per-instance texture references. GPU-friendly. Burst-compatible.
-
-------------------------------------------------------------------------
-
-# Placement Modes
-
-## 1) Regular Grid Mode
-
--   Fixed cell size
--   No subdivision
--   Uniform transform scale
--   Ideal for deterministic tiling
--   Complexity: O(n)
-
-## 2) Hierarchical QuadTree Mode
-
-True tree, not flat list.
-
-``` csharp
-struct QuadNode
-{
-    public float2 position;
-    public float size;
-    public int level;
-    public bool isLeaf;
-    public int childIndex;
-}
-```
-
-Characteristics:
-
--   Depth-based subdivision
--   Probabilistic subdivision
--   View-dependent subdivision (future)
--   LOD-aware rendering
-
-Worst-case: O(4\^D)\
-Practical: O(n) where n = number of leaf tiles
-
-------------------------------------------------------------------------
-
-# Winged Mode Support
-
-Winged tiles are:
-
--   Baked at editor time
--   Texture-based at runtime
--   Compatible with both Regular Grid and QuadTree modes
-
-Multiscale effect:
-
-scale = 1 / (2\^level)
-
-Tile cooker supports winged motifs via Bezier-based command DSL. Runtime
-supports winged mode by respecting over-boundary motif geometry and
-level scaling.
-
-------------------------------------------------------------------------
-
-# GPU Rendering Strategy
-
-Primary target:
-
-Graphics.DrawMeshInstancedIndirect
-
-Per-instance data:
-
--   Transform matrix
--   Motif index
--   Level
-
-Motif storage options:
-
-A)  Single quad mesh + procedural shader (preferred)\
-B)  Texture array atlas
-
-------------------------------------------------------------------------
-
-# Optimization Roadmap
-
-## Rendering
-
--   Switch fully to indirect instancing
--   StructuredBuffer for TileInstance
--   Frustum culling per QuadNode
--   Shader-based motif logic
-
-## Memory
-
--   Compress transform to float3x2
--   Half precision where possible
--   NativeList usage
-
-## Subdivision
-
--   Burst job-based QuadTree
--   View-dependent subdivision
--   Deterministic per-node seeds
-
-## Shader
-
--   Branchless parity logic
--   SDF-based winged motifs
--   Animated motif support
-
-------------------------------------------------------------------------
-
-# Design Philosophy
-
-1.  Store transforms, not geometry.
-2.  Bake visuals, not logic.
-3.  Separate placement from rendering.
-4.  Push work to GPU.
-5.  Keep CPU memory linear.
-6.  Avoid per-frame allocations.
-7.  Design for 100k+ tiles.
-
-
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\readme.md ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileTopology.cs ---
-
-// TODO ROADMAP:
-// [x] Simple NESW topology struct
-// [x] Mask encoding
-// [x] Rotation helper
-// [ ] Add compatibility check
-// [ ] Add neighbor matching helpers
-
-
-namespace Truchet
-{
-    [System.Serializable]
-    public struct TileTopology
-    {
-        public bool north;
-        public bool east;
-        public bool south;
-        public bool west;
-
-        /// <summary>
-        /// Bitmask encoding:
-        /// bit 0 → north
-        /// bit 1 → east
-        /// bit 2 → south
-        /// bit 3 → west
-        /// </summary>
-        public int Mask =>
-            (north ? 1 : 0) |
-            (east  ? 2 : 0) |
-            (south ? 4 : 0) |
-            (west  ? 8 : 0);
-
-        /// <summary>
-        /// Rotates NESW mask clockwise by 90° steps.
-        /// rotation: can be negative or greater than 3.
-        /// </summary>
-        public static int RotateMask(int mask, int rotation)
-        {
-            // Normalize rotation to 0..3
-            rotation = ((rotation % 4) + 4) % 4;
-
-            for (int i = 0; i < rotation; i++)
-            {
-                int north = (mask & 1) != 0 ? 1 : 0;
-                int east  = (mask & 2) != 0 ? 1 : 0;
-                int south = (mask & 4) != 0 ? 1 : 0;
-                int west  = (mask & 8) != 0 ? 1 : 0;
-
-                mask =
-                    (west  << 0) | // new north
-                    (north << 1) | // new east
-                    (east  << 2) | // new south
-                    (south << 3);  // new west
-            }
-
-            return mask;
-        }
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileTopology.cs ---
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IGridLayout.cs ---
 
 // --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTreeInstanceGenerator.cs ---
 
 // TODO ROADMAP:
-// [x] Basic hierarchical CPU renderer
-// [x] Leaf-only rendering
-// [x] Large-to-small ordering
-// [ ] Add parity inversion
-// [ ] Add transform matrix abstraction
-// [ ] Add multiscale debug overlay
-// [ ] GPU backend replacement
+// [x] Instance generation only (GPU ready)
+// [ ] Add SDF-aware motif index mapping
+// [ ] Add frustum culling support
+// [ ] Add burst-compatible path
 
 using System.Collections.Generic;
-using System.Threading;
-using Cysharp.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Truchet
 {
@@ -351,20 +89,9 @@ namespace Truchet
     {
         private readonly int _canvasResolution;
 
-        private readonly bool _debugStep;
-        private readonly int _debugDelayMs;
-        private readonly bool _waitForKey;
-
-        public QuadTreeInstanceGenerator(
-            int canvasResolution,
-            bool debugStep = false,
-            int debugDelayMs = 0,
-            bool waitForKey = false)
+        public QuadTreeInstanceGenerator(int canvasResolution)
         {
             _canvasResolution = canvasResolution;
-            _debugStep = debugStep;
-            _debugDelayMs = debugDelayMs;
-            _waitForKey = waitForKey;
         }
 
         public List<TileInstanceGPU> GenerateInstances(
@@ -381,14 +108,7 @@ namespace Truchet
                 if (!node.IsActive)
                     continue;
 
-                if (node.TileSetId < 0 ||
-                    node.TileSetId >= tileSets.Length)
-                    continue;
-
-                TileSet tileSet = tileSets[node.TileSetId];
-
-                if (node.TileIndex < 0 ||
-                    node.TileIndex >= tileSet.tiles.Length)
+                if (!IsValidNode(node, tileSets))
                     continue;
 
                 float nodeSizePx = node.Size * resolution;
@@ -397,7 +117,6 @@ namespace Truchet
                     (node.X + node.Size * 0.5f) * resolution,
                     (node.Y + node.Size * 0.5f) * resolution);
 
-                // Winged logic preserved: 2x logical size
                 float renderSize = nodeSizePx * 2f;
 
                 Matrix4x4 matrix =
@@ -413,213 +132,289 @@ namespace Truchet
 
             return instances;
         }
-        
-        public async UniTask RenderAsync(
-            IHierarchicalTileLayout layout,
-            TileSet[] tileSets,
-            Texture2D output,
-            CancellationToken token = default)
+
+        private bool IsValidNode(QuadNodeInfo node, TileSet[] tileSets)
         {
-            int resolution = _canvasResolution;
+            if (node.TileSetId < 0 ||
+                node.TileSetId >= tileSets.Length)
+                return false;
 
-            Color[] pixels = new Color[resolution * resolution];
+            TileSet tileSet = tileSets[node.TileSetId];
 
-            Color clear = new Color(0, 0, 0, 0);
+            if (node.TileIndex < 0 ||
+                node.TileIndex >= tileSet.tiles.Length)
+                return false;
 
-            for (int i = 0; i < pixels.Length; i++)
-                pixels[i] = clear;
+            Tile tile = tileSet.tiles[node.TileIndex];
 
-            List<QuadNodeInfo> leaves = new List<QuadNodeInfo>();
-
-            foreach (int index in layout.GetLeafIndices())
-            {
-                QuadNodeInfo node = layout.GetNode(index);
-                if (node.IsActive)
-                    leaves.Add(node);
-            }
-
-            leaves.Sort((a, b) => b.Size.CompareTo(a.Size));
-
-            if (_debugStep)
-            {
-                Debug.Log("===== Hierarchical Render Start =====");
-                Debug.Log($"Leaf Count: {leaves.Count}");
-                Debug.Log($"Resolution: {resolution}");
-            }
-
-            int renderIndex = 0;
-
-            foreach (var node in leaves)
-            {
-                token.ThrowIfCancellationRequested();
-
-                if (node.TileSetId < 0 ||
-                    node.TileSetId >= tileSets.Length)
-                    continue;
-
-                TileSet tileSet = tileSets[node.TileSetId];
-
-                if (node.TileIndex < 0 ||
-                    node.TileIndex >= tileSet.tiles.Length)
-                    continue;
-
-                Tile tile = tileSet.tiles[node.TileIndex];
-                if (tile == null || tile.texture == null)
-                    continue;
-
-                if (_debugStep)
-                {
-                    Debug.Log(
-                        $"--- Rendering Tile {renderIndex + 1}/{leaves.Count} ---\n" +
-                        $"Level: {node.Level}\n" +
-                        $"Size: {node.Size:F3}\n" +
-                        $"Position: ({node.X:F3}, {node.Y:F3})\n" +
-                        $"Rotation: {node.Rotation}\n" +
-                        $"Parity Inverted: {(node.Level % 2 == 1)}"
-                    );
-                }
-
-                BlitNode(tile, node, pixels, resolution);
-                if (_debugStep)
-                {
-                    DrawNodeFrame(node, pixels, resolution);
-                }
-
-                output.SetPixels(pixels);
-                output.Apply();
-
-                renderIndex++;
-
-                if (_debugStep)
-                {
-                    if (_waitForKey)
-                    {
-                        Debug.Log("Waiting for SPACE to continue...");
-                        await UniTask.WaitUntil(
-                            () => Keyboard.current.spaceKey.wasPressedThisFrame,
-                            cancellationToken: token);
-                    }
-                    else if (_debugDelayMs > 0)
-                    {
-                        Debug.Log($"Waiting {_debugDelayMs} ms...");
-                        await UniTask.Delay(_debugDelayMs, cancellationToken: token);
-                    }
-                    else
-                    {
-                        await UniTask.Yield(PlayerLoopTiming.Update, token);
-                    }
-                }
-            }
-
-            if (_debugStep)
-                Debug.Log("===== Hierarchical Render Finished =====");
-        }
-
-        private void BlitNode(
-            Tile tile,
-            QuadNodeInfo node,
-            Color[] target,
-            int resolution)
-        {
-            Texture2D sourceTex = tile.texture;
-            Color[] source = sourceTex.GetPixels();
-
-            int sourceRes = sourceTex.width;
-
-            int nodeSizePx = Mathf.RoundToInt(node.Size * resolution);
-
-            // Center of node
-            float centerX = (node.X + node.Size * 0.5f) * resolution;
-            float centerY = (node.Y + node.Size * 0.5f) * resolution;
-
-            int renderSize = nodeSizePx * 2; // winged tiles are 2x logical
-
-            int startX = Mathf.RoundToInt(centerX - renderSize * 0.5f);
-            int startY = Mathf.RoundToInt(centerY - renderSize * 0.5f);
-
-            // Parity rule
-            bool invert = (node.Level % 2 == 1);
-
-            for (int y = 0; y < renderSize; y++)
-            {
-                for (int x = 0; x < renderSize; x++)
-                {
-                    int tx = startX + x;
-                    int ty = startY + y;
-
-                    if (tx < 0 || tx >= resolution ||
-                        ty < 0 || ty >= resolution)
-                        continue;
-
-                    int srcX = Mathf.FloorToInt((float)x / renderSize * sourceRes);
-                    int srcY = Mathf.FloorToInt((float)y / renderSize * sourceRes);
-
-                    int srcIndex = srcY * sourceRes + srcX;
-                    Color c = source[srcIndex];
-
-                    if (c.a <= 0f)
-                        continue;
-
-                    if (invert)
-                    {
-                        // Swap black/white
-                        if (c.r > 0.5f) // white
-                            c = Color.black;
-                        else // black
-                            c = Color.white;
-                    }
-
-                    target[ty * resolution + tx] = c;
-                }
-            }
-        }
-        
-        
-        
-        private void DrawNodeFrame(
-            QuadNodeInfo node,
-            Color[] pixels,
-            int resolution)
-        {
-            bool InBounds(int x, int y, int resolution)
-            {
-                return x >= 0 && x < resolution &&
-                       y >= 0 && y < resolution;
-            }
-            int startX = Mathf.RoundToInt(node.X * resolution);
-            int startY = Mathf.RoundToInt(node.Y * resolution);
-            int sizePx = Mathf.RoundToInt(node.Size * resolution);
-
-            int endX = startX + sizePx - 1;
-            int endY = startY + sizePx - 1;
-
-            Color frameColor = Color.green;
-
-            // Top & Bottom
-            for (int x = startX; x <= endX; x++)
-            {
-                if (InBounds(x, startY, resolution))
-                    pixels[startY * resolution + x] = frameColor;
-
-                if (InBounds(x, endY, resolution))
-                    pixels[endY * resolution + x] = frameColor;
-            }
-
-            // Left & Right
-            for (int y = startY; y <= endY; y++)
-            {
-                if (InBounds(startX, y, resolution))
-                    pixels[y * resolution + startX] = frameColor;
-
-                if (InBounds(endX, y, resolution))
-                    pixels[y * resolution + endX] = frameColor;
-            }
+            return tile != null;
         }
     }
-    
 }
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTreeInstanceGenerator.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap-readme.md ---
+
+# QuadTreeTileMap --- Architecture & Design Specification
+
+## Overview
+
+QuadTreeTileMap is a mutable hierarchical spatial container supporting
+both:
+
+-   Uniform grid access (Mode A)
+-   Adaptive hierarchical access (Mode B)
+
+It is designed to support: - Deterministic procedural generation -
+Runtime structural mutation (subdivide / collapse) - Designer patch
+workflows - Modifier-driven content changes - Future winged multiscale
+rendering
+
+The TileMap is strictly a container. It does not generate content
+automatically. All generation logic is handled by modifiers.
+
+------------------------------------------------------------------------
+
+# Core Architectural Principles
+
+1.  Stable Node Identity\
+2.  Deterministic Structural Behavior\
+3.  Canonical Child Ordering\
+4.  Strict Mode Separation\
+5.  No Hidden Side Effects\
+6.  Spatial Traversal over Morton Encoding\
+7.  Modifiers Own Content Generation
+
+------------------------------------------------------------------------
+
+# Interfaces
+
+QuadTreeTileMap implements:
+
+-   IGridLayout (Mode A only)
+-   IHierarchicalTileLayout (always available)
+
+------------------------------------------------------------------------
+
+# Modes
+
+## Mode A --- Uniform Depth (Grid Compatible)
+
+Valid only if:
+
+All active leaves share the same Level.
+
+When valid:
+
+-   Width = Height = 2\^depth
+-   Spatial traversal resolves (x, y)
+-   IGridLayout is fully supported
+
+If not uniform:
+
+-   IGridLayout methods throw InvalidOperationException
+
+------------------------------------------------------------------------
+
+## Mode B --- Adaptive Hierarchical Mode
+
+-   Leaves may exist at mixed levels
+-   IGridLayout is invalid
+-   IHierarchicalTileLayout remains fully usable
+
+------------------------------------------------------------------------
+
+# Canonical Child Ordering
+
+Child indices are permanently defined as:
+
+```
+  2   3
+  --- ---
+  0   1
+```
+
+0 = bottom-left\
+1 = bottom-right\
+2 = top-left\
+3 = top-right
+
+This ordering must never change.
+
+Collapse behavior depends on this ordering.
+
+------------------------------------------------------------------------
+
+# Node Structure
+
+Each node contains:
+
+-   X, Y (spatial origin)
+-   Size
+-   Level
+-   IsLeaf
+-   IsActive
+-   ChildIndex
+-   TileSetId
+-   TileIndex
+-   Rotation
+
+Inactive nodes retain their data.
+
+Nodes are never physically removed from memory.
+
+------------------------------------------------------------------------
+
+# Stable Node Indices
+
+-   Node indices never shift.
+-   Collapse marks children inactive.
+-   Subdivision may reuse indices from a free-list.
+-   External systems (patch, modifiers) may safely store node indices.
+
+------------------------------------------------------------------------
+
+# Subdivision Rules
+
+When Subdivide(node):
+
+-   Only valid if node is a leaf.
+-   4 children are created.
+-   Children inherit parent tile values.
+-   Parent becomes non-leaf.
+-   Uniform state is recalculated.
+
+------------------------------------------------------------------------
+
+# Collapse Rules
+
+When Collapse(node):
+
+-   Only valid if node is non-leaf.
+-   Parent tile becomes child\[0\] tile.
+-   Children are marked inactive.
+-   Children retain stored tile data.
+-   Uniform state is recalculated.
+
+No automatic merging heuristics exist.
+
+------------------------------------------------------------------------
+
+# Uniform Detection
+
+Uniform mode is valid when:
+
+All active leaves have identical Level.
+
+This is recalculated after every structural mutation.
+
+------------------------------------------------------------------------
+
+# Spatial Traversal
+
+Grid access uses spatial traversal:
+
+-   Start at root
+-   Descend by quadrant selection
+-   Resolve leaf in O(depth)
+
+Morton indexing is intentionally NOT used.
+
+Reason:
+
+-   Preserves structural semantics
+-   Works for adaptive trees
+-   Safer for mutable systems
+-   Easier for patch workflows
+
+------------------------------------------------------------------------
+
+# Determinism
+
+-   QuadTreeTileMap does not auto-generate randomness.
+
+-   If random subdivision is implemented, it must use:
+
+    nodeSeed = Hash(globalSeed, node.Level, node.X, node.Y)
+
+-   No UnityEngine.Random allowed.
+
+Tree structure changes only through explicit calls.
+
+------------------------------------------------------------------------
+
+# Mutability
+
+Allowed operations:
+
+-   Subdivide(node)
+-   Collapse(node)
+-   SetTileByNode(node)
+-   SetTile(x,y) (uniform mode only)
+
+Structure never rebuilds implicitly.
+
+------------------------------------------------------------------------
+
+# Modifier Responsibility
+
+Modifiers:
+
+-   Own procedural generation
+-   Own random behavior (seeded)
+-   Mutate tile content
+-   Do not own structure unless explicitly intended
+
+TileMap is a passive container.
+
+------------------------------------------------------------------------
+
+# Rendering Implications
+
+Grid renderer operates in Mode A.
+
+Future winged multiscale renderer will use:
+
+-   IHierarchicalTileLayout
+-   Node spatial data
+-   Level-based scaling
+
+------------------------------------------------------------------------
+
+# Non-Goals
+
+QuadTreeTileMap will NOT:
+
+-   Auto-balance structure
+-   Auto-generate content
+-   Implicitly rebuild on seed change
+-   Hide invalid grid access in adaptive mode
+
+------------------------------------------------------------------------
+
+# Future Extensions
+
+-   Adaptive view-dependent LOD
+-   Burst-compatible node storage
+-   GPU transform streaming
+-   Constraint-based subdivision modifiers
+
+------------------------------------------------------------------------
+
+# Summary
+
+QuadTreeTileMap is:
+
+-   Deterministic
+-   Mutable
+-   Designer-safe
+-   Dual-interface compliant
+-   Strictly structured
+-   Future-proof for multiscale winged rendering
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap-readme.md ---
 
 // --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap.cs ---
 
@@ -1014,6 +809,259 @@ namespace Truchet
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap.cs ---
 
+// --- Start File: Unity\TruchetTiles\Assets\Core\Shaders\GPUInstancedTile.shader ---
+
+Shader "Truchet/GPUInstancedTile"
+{
+    SubShader
+    {
+        Tags { "RenderType"="Opaque" }
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "UnityCG.cginc"
+
+            struct TileInstanceGPU
+            {
+                float4x4 transform;
+                uint motifIndex;
+                uint level;
+            };
+
+            StructuredBuffer<TileInstanceGPU> _Instances;
+
+            UNITY_DECLARE_TEX2DARRAY(_TileArray);
+
+            struct Attributes
+            {
+                float3 positionOS : POSITION;
+                float2 uv         : TEXCOORD0;
+                uint instanceID   : SV_InstanceID;
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float2 uv         : TEXCOORD0;
+                uint motifIndex   : TEXCOORD1;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+
+                TileInstanceGPU instance =
+                    _Instances[IN.instanceID];
+
+                float4 worldPos =
+                    mul(instance.transform,
+                        float4(IN.positionOS, 1.0));
+
+                OUT.positionCS =
+                    mul(UNITY_MATRIX_VP, worldPos);
+
+                OUT.uv = IN.uv;
+                OUT.motifIndex = instance.motifIndex;
+
+                return OUT;
+            }
+
+            float4 frag(Varyings IN) : SV_Target
+            {
+                return UNITY_SAMPLE_TEX2DARRAY(
+                    _TileArray,
+                    float3(IN.uv, IN.motifIndex));
+            }
+
+            ENDHLSL
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Shaders\GPUInstancedTile.shader ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IHierarchicalTileLayout.cs ---
+
+// TODO ROADMAP:
+// [x] Hierarchical tile layout interface
+// [ ] Add neighbor query helpers
+// [ ] Add transform extraction helpers
+// [ ] Add bulk iteration API
+
+using System.Collections.Generic;
+
+namespace Truchet
+{
+    public interface IHierarchicalTileLayout
+    {
+        int NodeCount { get; }
+        int LeafCount { get; }
+
+        QuadNodeInfo GetNode(int nodeIndex);
+        IEnumerable<int> GetLeafIndices();
+
+        void Subdivide(int nodeIndex);
+        void Collapse(int nodeIndex);
+
+        void SetTileByNode(int nodeIndex, int tileSetId, int tileIndex, int rotation);
+
+        bool IsUniformDepth { get; }
+        int UniformDepth { get; }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IHierarchicalTileLayout.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
+
+// TODO ROADMAP:
+// [x] Polymorphic render instruction model
+// [x] Rectangle, Ellipse, Pie, Bezier instructions
+// [x] Color-aware render instructions (Black / White)
+// [ ] Add LineInstruction
+// [ ] Add PolygonInstruction
+// [ ] Add GradientInstruction
+// [ ] Add Anti-aliased rasterization support
+
+using UnityEngine;
+
+namespace Truchet
+{
+    internal enum DrawColor
+    {
+        Black,
+        White
+    }
+
+    internal abstract class TileRenderInstruction
+    {
+        // Default = Black (backward compatible)
+        public DrawColor Color = DrawColor.Black;
+    }
+
+    internal sealed class RectangleInstruction : TileRenderInstruction
+    {
+        public Vector2 Center;
+        public Vector2 Size;
+    }
+
+    internal sealed class EllipseInstruction : TileRenderInstruction
+    {
+        public Vector2 Center;
+        public Vector2 Size;
+    }
+
+    internal sealed class PieInstruction : TileRenderInstruction
+    {
+        public Vector2 Center;
+        public Vector2 Size;
+        public float StartAngle;
+        public float SweepAngle;
+    }
+
+    internal sealed class BezierInstruction : TileRenderInstruction
+    {
+        public Vector2 P0;
+        public Vector2 P1;
+        public Vector2 P2;
+        public Vector2 P3;
+        public float Thickness;
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\Direction.cs ---
+
+// TODO ROADMAP:
+// [x] Direction enum
+// [ ] Use the one from gamelib
+// [ ] Add diagonal support
+// [ ] Add vector conversion helpers
+
+namespace Truchet
+{
+    public enum Direction
+    {
+        Right,
+        Up,
+        Left,
+        Down
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\Direction.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\Backends\IRenderBackend.cs ---
+
+// TODO ROADMAP:
+// [x] Rendering backend abstraction
+// [ ] Add mesh-based backend (Marching Squares)
+// [ ] Add compute-driven backend
+// [ ] Add frustum culling integration
+// [ ] Add persistent buffer reuse
+// [ ] Add multi-material support
+
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Truchet
+{
+    public interface IRenderBackend
+    {
+        void RenderInstances(
+            List<TileInstanceGPU> instances,
+            int resolution);
+
+        public void SetTileTextureArray(Texture2DArray array);
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\Backends\IRenderBackend.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridCell.cs ---
+
+// TODO ROADMAP:
+// [x] Basic grid cell data container
+// [x] Rotation support (0-3)
+// [x] TileSetId support (multi-tileset rendering)
+// [ ] Add metadata storage
+// [ ] Add flags (blocked, reserved, etc.)
+// [ ] Add multiscale support hook
+
+namespace Truchet
+{
+    /// <summary>
+    /// Logical grid cell.
+    /// Pure topology container.
+    /// </summary>
+    public struct GridCell
+    {
+        public int X;
+        public int Y;
+
+        public int TileSetId;  
+        public int TileIndex;
+        public int Rotation;    // 0,1,2,3 (90° steps)
+
+        public GridCell(int x, int y)
+        {
+            X = x;
+            Y = y;
+            TileSetId = -1;
+            TileIndex = -1;
+            Rotation = 0;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridCell.cs ---
+
 // --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifier.cs ---
 
 // TODO ROADMAP:
@@ -1063,263 +1111,186 @@ namespace Truchet
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifier.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TileMapRuntime.cs ---
+// --- Start File: Unity\TruchetTiles\Assets\Core\readme.md ---
 
-// TODO ROADMAP:
-// [x] LayoutMode selection (Regular / QuadTree)
-// [x] Renderer selection per layout type
-// [x] Support QuadTreeSubdivisionModifierRandom
-// [ ] Deterministic global seed support
-// [ ] Regenerate button (Editor & Runtime)
-// [ ] Abstract modifier interface for both layout types
-// [ ] GPU renderer switch (InstancedIndirect)
-// [ ] Parity-aware rendering integration
-// [ ] Inspector layout settings struct
-// [ ] Live preview in editor (ExecuteInEditMode)
-// [ ] Layout serialization support
-// [ ] Runtime rebuild without reallocating textures
-// [ ] Chunked rendering for large outputs
-// [ ] Frustum-aware hierarchical rendering
-// [ ] Debug overlay toggle for node levels
+# Truchet Core --- GPU-Driven Multiscale Tile System
 
-using UnityEngine;
-using System.Collections.Generic;
-using NaughtyAttributes;
-using UnityEngine.Serialization;
+## Overview
 
-namespace Truchet
-{
-    public enum LayoutMode
-    {
-        RegularGrid,
-        QuadTree
-    }
+Truchet Core is a modular, GPU-driven tile composition system designed
+for:
 
-    public class TileMapRuntime : MonoBehaviour
-    {
-        [Header("Layout")] [SerializeField] private LayoutMode _layoutMode = LayoutMode.QuadTree;
-        [SerializeField] private int _width = 8;
-        [SerializeField] private int _height = 8;
+-   Large-scale procedural tiling (100k+ tiles)
+-   Hierarchical QuadTree layouts
+-   SDF-based tile motifs
+-   GPU instanced rendering
+-   Marching Squares field composition
+-   Deterministic structural behavior
 
-        [Header("Rendering")] [SerializeField] private int _tileSizePixels = 256;
-        [SerializeField] private Renderer _targetRenderer;
-        [SerializeField] private bool _debugLines;
+The system separates **topology**, **composition**, and **rendering**
+into clean architectural layers.
 
-        [Button]
-        private void Start()
-        {
-            switch (_layoutMode)
-            {
-                case LayoutMode.RegularGrid:
-                    RenderRegularGrid();
-                    break;
+------------------------------------------------------------------------
 
-                case LayoutMode.QuadTree:
-                    RenderQuadTree();
-                    break;
-            }
-        }
+## Architectural Layers
 
-        // --------------------------------------------------
-        // Regular Grid Path
-        // --------------------------------------------------
+### 1. Layout Layer (Topology)
 
-        private void RenderRegularGrid()
-        {
-            RegularGridTileMap map =
-                new RegularGridTileMap(_width, _height);
+Responsible only for spatial structure and tile indexing.
 
-            TileMapModifier[] modifiers =
-                GetComponents<TileMapModifier>();
+-   Regular Grid (uniform resolution)
+-   Adaptive QuadTree (mixed-depth hierarchy)
+-   Stable node indices
+-   Deterministic subdivision
+-   No rendering logic
+-   No texture ownership
 
-            List<TileSet> tileSets = new List<TileSet>();
+Layout defines *where* tiles exist --- not how they are drawn.
 
-            for (int i = 0; i < modifiers.Length; i++)
-            {
-                var mod = modifiers[i];
+------------------------------------------------------------------------
 
-                if (mod.TileSet == null)
-                    continue;
+### 2. Composition Layer
 
-                mod.TileSetId = tileSets.Count;
-                tileSets.Add(mod.TileSet);
-            }
+Transforms layout data into renderable geometry or instances.
 
-            foreach (var mod in modifiers)
-            {
-                if (mod.enabled)
-                    mod.Apply(map);
-            }
+Interface: `ITileCompositionStrategy`
 
-            RegularGridInstanceGenerator renderer =
-                new RegularGridInstanceGenerator(_tileSizePixels);
+Implementations:
 
-            Texture2D result =
-                renderer.Render(map, tileSets.ToArray(), _debugLines);
+-   **Motif Instanced Composition**
+    -   Produces per-tile GPU instance data
+    -   Supports winged tiles
+    -   Supports multiscale rendering
+    -   Level-based parity logic
+-   **Marching Squares Composition**
+    -   Converts scalar field into mesh geometry
+    -   Generates seamless surfaces
+    -   Works from SDF or discrete field data
+    -   Resolution independent
+    -   LOD compatible
 
-            _targetRenderer.material.mainTexture = result;
-        }
+Composition layer owns topology interpretation.
 
-        // --------------------------------------------------
-        // QuadTree Path
-        // --------------------------------------------------
+------------------------------------------------------------------------
 
-        private async void RenderQuadTree()
-        {
-            QuadTreeTileMap map = new QuadTreeTileMap(1f);
+### 3. Rendering Layer (GPU Only)
 
-            TileMapModifier[] modifiers =
-                GetComponents<TileMapModifier>();
+Responsible only for drawing prepared data.
 
-            List<TileSet> tileSets = new List<TileSet>();
+Interface: `IRenderBackend`
 
-            for (int i = 0; i < modifiers.Length; i++)
-            {
-                var mod = modifiers[i];
+Primary backend:
 
-                if (mod.TileSet == null)
-                    continue;
+-   **GPU Instanced Renderer**
+    -   Graphics.DrawMeshInstancedIndirect
+    -   StructuredBuffer`<TileInstanceGPU>`{=html}
+    -   Indirect argument buffers
+    -   Single quad mesh for motifs
+    -   Shader-driven logic
+    -   No CPU texture compositing
 
-                mod.TileSetId = tileSets.Count;
-                tileSets.Add(mod.TileSet);
-            }
+Renderer never queries layout directly.
 
-            foreach (var mod in modifiers)
-            {
-                if (mod.enabled)
-                    mod.Apply(map);
-            }
+------------------------------------------------------------------------
 
-            var renderer = new QuadTreeInstanceGenerator(
-                _tileSizePixels * _width,
-                debugStep: false, // enable debug
-                debugDelayMs: 200, // 200ms per tile
-                waitForKey: true // or true for manual stepping
-            );
+## Tile Model
 
-            int resolution = _tileSizePixels * _width;
+Each Tile asset may contain:
 
-            Texture2D progressiveTexture =
-                new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
+-   Connectivity mask (NESW bitmask)
+-   SDF representation (preferred)
+-   Optional texture fallback
+-   Winged flag for multiscale overlap
 
-            // CLEAR IT BEFORE ASSIGNING
-            Color[] clearPixels = new Color[resolution * resolution];
-            Color clear = new Color(0, 0, 0, 0);
+Tiles are data descriptors --- not rendering logic.
 
-            for (int i = 0; i < clearPixels.Length; i++)
-                clearPixels[i] = clear;
+------------------------------------------------------------------------
 
-            progressiveTexture.SetPixels(clearPixels);
-            progressiveTexture.Apply();
+## SDF-Driven Motif System
 
-            // Assign AFTER clearing
-            _targetRenderer.material.mainTexture = progressiveTexture;
+Signed Distance Fields enable:
 
-            await renderer.RenderAsync(
-                map,
-                tileSets.ToArray(),
-                progressiveTexture);
-        }
-    }
-}
+-   Resolution independence
+-   Smooth edges
+-   Shader-based parity inversion
+-   Dynamic animation potential
+-   Procedural blending
+-   Marching Squares field generation
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TileMapRuntime.cs ---
+SDF is the canonical motif representation.
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
+------------------------------------------------------------------------
 
-using UnityEngine;
+## Marching Squares Field System
 
-namespace Truchet
-{
-    [CreateAssetMenu(
-        fileName = "TileCookDefinition",
-        menuName = "Truchet/Tile Cooking/Tile Cook Definition",
-        order = 0)]
-    public class TileCookDefinition : ScriptableObject
-    {
-        [Header("Resolution")]
-        public int Width = 256;
-        public int Height = 256;
+The system supports generating continuous surfaces from tile data:
 
-        [Header("Winged Mode")]
-        public bool IsWinged;
+Layout → Scalar Field → Threshold → Mesh
 
-        [Header("Output Folder (relative to Assets/)")]
-        public string OutputFolder = "Core/Textures/Tiles";
+Capabilities:
 
-        [Header("Topology")]
-        public TileTopology Topology;
+-   Continuous geometry generation
+-   Seamless blending across tiles
+-   GPU-friendly mesh output
+-   LOD scalable
+-   Compatible with QuadTree hierarchy
 
-        [Header("Command Script")]
-        [TextArea(10, 40)]
-        public string CommandScript;
-    }
-}
+Marching Squares operates at composition level, not rendering level.
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
+------------------------------------------------------------------------
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridCell.cs ---
+## Multiscale & Hierarchical Support
 
-// TODO ROADMAP:
-// [x] Basic grid cell data container
-// [x] Rotation support (0-3)
-// [x] TileSetId support (multi-tileset rendering)
-// [ ] Add metadata storage
-// [ ] Add flags (blocked, reserved, etc.)
-// [ ] Add multiscale support hook
+-   True QuadTree structure
+-   Mixed-depth rendering
+-   Level-based scaling
+-   Winged tile overlap support
+-   Future frustum-based culling
+-   GPU-driven LOD compatibility
 
-namespace Truchet
-{
-    /// <summary>
-    /// Logical grid cell.
-    /// Pure topology container.
-    /// </summary>
-    public struct GridCell
-    {
-        public int X;
-        public int Y;
+------------------------------------------------------------------------
 
-        public int TileSetId;  
-        public int TileIndex;
-        public int Rotation;    // 0,1,2,3 (90° steps)
+## Determinism & Mutability
 
-        public GridCell(int x, int y)
-        {
-            X = x;
-            Y = y;
-            TileSetId = -1;
-            TileIndex = -1;
-            Rotation = 0;
-        }
-    }
-}
+-   Stable node identity
+-   Explicit subdivision / collapse
+-   No implicit rebuilds
+-   Modifiers own procedural logic
+-   Layout remains passive container
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridCell.cs ---
+------------------------------------------------------------------------
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileSet.cs ---
+## Performance Characteristics
 
-// TODO ROADMAP:
-// [x] TileSet asset (collection of tiles)
-// [ ] Add lookup by connectivity
-// [ ] Add weighted lookup
-// [ ] Add adjacency filtering helpers
-// [ ] Add runtime dictionary cache
+Designed for:
 
-using UnityEngine;
+-   100k+ tiles
+-   Indirect instancing
+-   GPU-side motif logic
+-   Minimal CPU allocations
+-   Burst-compatible future extensions
 
-namespace Truchet
-{
-    [CreateAssetMenu(
-        fileName = "TileSet",
-        menuName = "Truchet/Tiles/Tile Set",
-        order = 1)]
-    public class TileSet : ScriptableObject
-    {
-        public Tile[] tiles;
-    }
-}
+------------------------------------------------------------------------
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileSet.cs ---
+## Final Feature Set
+
+-   GPU instanced motif rendering
+-   SDF-based tile system
+-   Marching Squares surface generation
+-   Regular Grid + Adaptive QuadTree layouts
+-   Composition abstraction layer
+-   Deterministic structural mutation
+-   Winged multiscale tiles
+-   Shader-driven visual logic
+-   Extensible backend architecture
+
+------------------------------------------------------------------------
+
+Truchet Core is a scalable, modular foundation for procedural tiling,
+field-based rendering, and multiscale GPU-driven composition.
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\readme.md ---
 
 // --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCommandParser.cs ---
 
@@ -1507,90 +1478,156 @@ namespace Truchet
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCommandParser.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IGridLayout.cs ---
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridTileMap.cs ---
 
 // TODO ROADMAP:
-// [x] Define grid abstraction interface
-// [x] Add SetTile support
-// [ ] Add coordinate helpers
-// [ ] Add neighbor query helpers
-// [ ] Add bounds validation helpers
-// [ ] Add serialization support if needed
+// [x] Basic rectangular grid implementation
+// [x] Renamed from RegularGridLayout
+// [ ] Add neighbor query API
+// [ ] Add iteration helpers
+// [ ] Add deterministic fill utilities
+// [ ] Add resize support
+
+namespace Truchet
+{
+    public class RegularGridTileMap : IGridLayout
+    {
+        private readonly GridCell[,] _cells;
+
+        public int Width { get; }
+        public int Height { get; }
+
+        public RegularGridTileMap(int width, int height)
+        {
+            Width = width;
+            Height = height;
+
+            _cells = new GridCell[width, height];
+
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                _cells[x, y] = new GridCell(x, y);
+        }
+
+        public bool IsValid(int x, int y)
+        {
+            return x >= 0 && y >= 0 && x < Width && y < Height;
+        }
+
+        public GridCell GetCell(int x, int y)
+        {
+            if (!IsValid(x, y))
+                throw new System.ArgumentOutOfRangeException();
+
+            return _cells[x, y];
+        }
+
+        public void SetTile(int x, int y, int tileSetId, int tileIndex, int rotation)
+        {
+            if (!IsValid(x, y))
+                return;
+
+            GridCell cell = _cells[x, y];
+            cell.TileSetId = tileSetId;
+            cell.TileIndex = tileIndex;
+            cell.Rotation = rotation;
+
+            _cells[x, y] = cell;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridTileMap.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Shaders\GPUInstancedTile_Stab.shader ---
+
+Shader "Truchet/GPUInstancedTile_Stab"
+{
+    SubShader
+    {
+        Tags { "RenderType"="Opaque" }
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "UnityCG.cginc"
+
+            // Must match C# struct layout exactly (80 bytes)
+            struct TileInstanceGPU
+            {
+                float4x4 transform;
+                uint motifIndex;
+                uint level;
+                uint pad0;
+                uint pad1;
+            };
+
+            StructuredBuffer<TileInstanceGPU> _Instances;
+
+            struct Attributes
+            {
+                float3 positionOS : POSITION;
+                uint instanceID   : SV_InstanceID;
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+            };
+
+            Varyings vert(Attributes IN)
+            {
+                Varyings OUT;
+
+                TileInstanceGPU instance = _Instances[IN.instanceID];
+
+                float4 worldPos = mul(
+                    instance.transform,
+                    float4(IN.positionOS, 1.0));
+
+                OUT.positionCS = mul(UNITY_MATRIX_VP, worldPos);
+
+                return OUT;
+            }
+
+            float4 frag(Varyings IN) : SV_Target
+            {
+                // Solid bright green
+                return float4(0, 1, 0, 1);
+            }
+
+            ENDHLSL
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Shaders\GPUInstancedTile_Stab.shader ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierRandom.cs ---
+
+// TODO ROADMAP:
+// [x] Component-based random layout modifier
+// [x] Multi-TileSet support
+// [x] Allowed rotation index control
+// [x] Inherit region support from base class
+// [ ] Add deterministic seed support
+// [ ] Add weighted tile selection
+// [ ] Add adjacency-aware randomization
+// [ ] Add tile filtering
 
 using UnityEngine;
 
 namespace Truchet
 {
-    /// <summary>
-    /// Pure topology abstraction.
-    /// Defines spatial indexing without rendering concerns.
-    /// </summary>
-    public interface IGridLayout
+    public class TileMapModifierRandom : TileMapModifier
     {
-        int Width { get; }
-        int Height { get; }
-
-        bool IsValid(int x, int y);
-
-        GridCell GetCell(int x, int y);
-
-        void SetTile(int x, int y, int tileSetId, int tileIndex, int rotation);
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IGridLayout.cs ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IHierarchicalTileLayout.cs ---
-
-// TODO ROADMAP:
-// [x] Hierarchical tile layout interface
-// [ ] Add neighbor query helpers
-// [ ] Add transform extraction helpers
-// [ ] Add bulk iteration API
-
-using System.Collections.Generic;
-
-namespace Truchet
-{
-    public interface IHierarchicalTileLayout
-    {
-        int NodeCount { get; }
-        int LeafCount { get; }
-
-        QuadNodeInfo GetNode(int nodeIndex);
-        IEnumerable<int> GetLeafIndices();
-
-        void Subdivide(int nodeIndex);
-        void Collapse(int nodeIndex);
-
-        void SetTileByNode(int nodeIndex, int tileSetId, int tileIndex, int rotation);
-
-        bool IsUniformDepth { get; }
-        int UniformDepth { get; }
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IHierarchicalTileLayout.cs ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierDirectionPattern.cs ---
-
-// TODO ROADMAP:
-// [x] Direction pattern modifier
-// [x] Multi-line rotation pattern
-// [ ] Add validation warnings
-// [ ] Add tile index strategy
-// [ ] Add connectivity awareness
-
-using NaughtyAttributes;
-using UnityEngine;
-
-namespace Truchet
-{
-    public class TileMapModifierDirectionPattern : TileMapModifier
-    {
-        [ResizableTextArea]
-        [SerializeField] private string _rotationPattern;
-
+        [SerializeField] private int[] _allowedRotations = { 0, 1, 2, 3 };
+        
+        
         public override void Apply(IGridLayout layout)
         {
             if (!enabled)
@@ -1599,52 +1636,411 @@ namespace Truchet
             if (_tileSet == null || _tileSet.tiles == null)
                 return;
 
-            if (string.IsNullOrWhiteSpace(_rotationPattern))
-                return;
-
-            string[] rows = _rotationPattern
-                .Replace("\r", "")
-                .Split('\n');
-
-            if (rows.Length == 0)
-                return;
+            bool useCustomRotations =
+                _allowedRotations != null && _allowedRotations.Length > 0;
 
             GetClampedRegion(layout, out int startX, out int startY, out int endX, out int endY);
 
             for (int y = startY; y < endY; y++)
             {
-                string rowPattern = rows[y % rows.Length];
-
-                if (string.IsNullOrEmpty(rowPattern))
-                    continue;
-
                 for (int x = startX; x < endX; x++)
                 {
-                    char c = rowPattern[x % rowPattern.Length];
+                    int tileIndex = Random.Range(0, _tileSet.tiles.Length);
 
-                    int rotation = DirectionToRotation(c);
-                    int tileIndex = x % _tileSet.tiles.Length;
+                    int rotation;
+
+                    if (useCustomRotations)
+                    {
+                        int r = Random.Range(0, _allowedRotations.Length);
+                        rotation = Mathf.Clamp(_allowedRotations[r], 0, 3);
+                    }
+                    else
+                    {
+                        rotation = Random.Range(0, 4);
+                    }
 
                     layout.SetTile(x, y, TileSetId, tileIndex, rotation);
                 }
             }
         }
+    }
+}
 
-        private int DirectionToRotation(char c)
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierRandom.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
+
+using UnityEngine;
+
+namespace Truchet
+{
+    [CreateAssetMenu(
+        fileName = "TileCookDefinition",
+        menuName = "Truchet/Tile Cooking/Tile Cook Definition",
+        order = 0)]
+    public class TileCookDefinition : ScriptableObject
+    {
+        [Header("Resolution")]
+        public int Width = 256;
+        public int Height = 256;
+
+        [Header("Winged Mode")]
+        public bool IsWinged;
+
+        [Header("Output Folder (relative to Assets/)")]
+        public string OutputFolder = "Core/Textures/Tiles";
+
+        [Header("Topology")]
+        public TileTopology Topology;
+
+        [Header("Command Script")]
+        [TextArea(10, 40)]
+        public string CommandScript;
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadNodeInfo.cs ---
+
+// TODO ROADMAP:
+// [x] Quad node info struct
+// [ ] Add transform helper
+// [ ] Add world-space conversion helpers
+
+namespace Truchet
+{
+    public struct QuadNodeInfo
+    {
+        public float X;
+        public float Y;
+        public float Size;
+        public int Level;
+
+        public bool IsLeaf;
+        public bool IsActive;
+
+        public int ChildIndex;
+
+        public int TileSetId;
+        public int TileIndex;
+        public int Rotation;
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadNodeInfo.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\QuadTreeSubdivisionModifierRandom.cs ---
+
+// TODO ROADMAP:
+// [x] Basic recursive subdivision
+// [x] Random subdivision probability
+// [x] Leaf tile assignment
+// [x] Use inherited grid region mapped to 0..1 spatial region
+// [ ] Deterministic seed support
+// [ ] Parity-aware tile assignment
+// [ ] Adjacency-aware constraints
+// [ ] View-dependent subdivision
+// [ ] Burst-compatible refactor
+
+using UnityEngine;
+
+namespace Truchet
+{
+    /// <summary>
+    /// Structural QuadTree modifier.
+    /// Interprets inherited grid region (_regionMin/_regionMax)
+    /// relative to QuadTree logical resolution and maps it into
+    /// normalized 0..1 spatial domain.
+    ///
+    /// QuadTree root always occupies [0,1] x [0,1].
+    /// LogicalWidth/LogicalHeight define how grid coordinates
+    /// map into that space.
+    /// </summary>
+    public class QuadTreeSubdivisionModifierRandom : TileMapModifier
+    {
+        [Header("Subdivision")]
+        [SerializeField, Range(0f, 1f)]
+        private float _subdivideProbability = 0.5f;
+
+        [SerializeField]
+        private int _maxDepth = 3;
+
+        // Derived spatial region (not serialized)
+        private Vector2 _spatialRegionMin;
+        private Vector2 _spatialRegionMax;
+
+        public override void Apply(IGridLayout layout)
         {
-            switch (char.ToUpperInvariant(c))
+            if (!enabled)
+                return;
+
+            if (!(layout is QuadTreeTileMap map))
+                return;
+
+            if (_tileSet == null || _tileSet.tiles == null)
+                return;
+
+            ComputeSpatialRegion(map);
+
+            SubdivideRecursive(map, 0);
+
+            foreach (int index in map.GetLeafIndices())
             {
-                case 'L': return 0;
-                case 'U': return 1;
-                case 'R': return 2;
-                case 'D': return 3;
-                default: return 0;
+                var node = map.GetNode(index);
+
+                if (!NodeInsideRegion(node))
+                    continue;
+
+                int tileIndex = Random.Range(0, _tileSet.tiles.Length);
+                int rotation = Random.Range(0, 4);
+
+                map.SetTileByNode(index, TileSetId, tileIndex, rotation);
             }
+        }
+
+        // --------------------------------------------------
+        // Region Mapping
+        // --------------------------------------------------
+
+        private void ComputeSpatialRegion(QuadTreeTileMap map)
+        {
+            int logicalWidth = map.LogicalWidth;
+            int logicalHeight = map.LogicalHeight;
+
+            int startX = Mathf.Clamp(_regionMin.x, 0, logicalWidth);
+            int startY = Mathf.Clamp(_regionMin.y, 0, logicalHeight);
+
+            int endX = Mathf.Clamp(_regionMax.x, 0, logicalWidth);
+            int endY = Mathf.Clamp(_regionMax.y, 0, logicalHeight);
+
+            _spatialRegionMin = new Vector2(
+                (float)startX / logicalWidth,
+                (float)startY / logicalHeight);
+
+            _spatialRegionMax = new Vector2(
+                (float)endX / logicalWidth,
+                (float)endY / logicalHeight);
+        }
+
+        // --------------------------------------------------
+        // Recursive Subdivision
+        // --------------------------------------------------
+
+        private void SubdivideRecursive(QuadTreeTileMap map, int nodeIndex)
+        {
+            var node = map.GetNode(nodeIndex);
+
+            if (!node.IsLeaf)
+                return;
+
+            if (node.Level >= _maxDepth)
+                return;
+
+            if (!NodeIntersectsRegion(node))
+                return;
+
+            if (Random.value > _subdivideProbability)
+                return;
+
+            map.Subdivide(nodeIndex);
+
+            node = map.GetNode(nodeIndex);
+            int childStart = node.ChildIndex;
+
+            if (childStart < 0)
+                return;
+
+            for (int i = 0; i < 4; i++)
+            {
+                SubdivideRecursive(map, childStart + i);
+            }
+        }
+
+        // --------------------------------------------------
+        // Region Tests
+        // --------------------------------------------------
+
+        private bool NodeInsideRegion(QuadNodeInfo node)
+        {
+            float minX = node.X;
+            float minY = node.Y;
+            float maxX = node.X + node.Size;
+            float maxY = node.Y + node.Size;
+
+            return
+                minX >= _spatialRegionMin.x &&
+                minY >= _spatialRegionMin.y &&
+                maxX <= _spatialRegionMax.x &&
+                maxY <= _spatialRegionMax.y;
+        }
+
+        private bool NodeIntersectsRegion(QuadNodeInfo node)
+        {
+            float minX = node.X;
+            float minY = node.Y;
+            float maxX = node.X + node.Size;
+            float maxY = node.Y + node.Size;
+
+            return !(
+                maxX <= _spatialRegionMin.x ||
+                minX >= _spatialRegionMax.x ||
+                maxY <= _spatialRegionMin.y ||
+                minY >= _spatialRegionMax.y
+            );
         }
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierDirectionPattern.cs ---
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\QuadTreeSubdivisionModifierRandom.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\ICompositionResult.cs ---
+
+using UnityEngine;
+
+public class ICompositionResult : MonoBehaviour
+{
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\ICompositionResult.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridInstanceGenerator.cs ---
+
+// TODO ROADMAP:
+// [x] Instance generation only (GPU ready)
+// [ ] Remove legacy CPU rendering path
+// [ ] Add SDF-aware motif index support
+// [ ] Add multiscale support
+// [ ] Add chunked instance generation
+
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Truchet
+{
+    public class RegularGridInstanceGenerator
+    {
+        private readonly int _tileSizePixels;
+
+        public RegularGridInstanceGenerator(int tileSizePixels)
+        {
+            _tileSizePixels = tileSizePixels;
+        }
+
+        public List<TileInstanceGPU> GenerateInstances(
+            IGridLayout layout,
+            TileSet[] tileSets)
+        {
+            List<TileInstanceGPU> instances = new List<TileInstanceGPU>();
+
+            for (int y = 0; y < layout.Height; y++)
+            {
+                for (int x = 0; x < layout.Width; x++)
+                {
+                    GridCell cell = layout.GetCell(x, y);
+
+                    if (!IsValidCell(cell, tileSets))
+                        continue;
+
+                    float tileSize = _tileSizePixels;
+
+                    Vector2 center = new Vector2(
+                        x * tileSize + tileSize * 0.5f,
+                        y * tileSize + tileSize * 0.5f);
+
+                    Matrix4x4 matrix =
+                        TileMatrixBuilder.Build(center, tileSize, cell.Rotation);
+
+                    instances.Add(new TileInstanceGPU
+                    {
+                        transform = matrix,
+                        motifIndex = (uint)cell.TileIndex,
+                        level = 0
+                    });
+                }
+            }
+
+            return instances;
+        }
+
+        private bool IsValidCell(GridCell cell, TileSet[] tileSets)
+        {
+            if (cell.TileSetId < 0 ||
+                cell.TileSetId >= tileSets.Length)
+                return false;
+
+            TileSet tileSet = tileSets[cell.TileSetId];
+
+            if (cell.TileIndex < 0 ||
+                cell.TileIndex >= tileSet.tiles.Length)
+                return false;
+
+            Tile tile = tileSet.tiles[cell.TileIndex];
+
+            return tile != null;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridInstanceGenerator.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\MotifInstanceCompositionStrategy.cs ---
+
+// TODO ROADMAP:
+// [x] Motif instanced composition
+// [ ] Add SDF-aware motif mapping
+// [ ] Add frustum culling support
+// [ ] Add burst-compatible path
+// [ ] Add chunked generation
+
+using System.Collections.Generic;
+
+namespace Truchet
+{
+    public class MotifInstanceCompositionStrategy : ITileCompositionStrategy
+    {
+        public List<TileInstanceGPU> ComposeInstances(
+            object layout,
+            TileSet[] tileSets,
+            int resolution)
+        {
+            if (layout is IGridLayout grid)
+            {
+                var generator =
+                    new RegularGridInstanceGenerator(resolution / grid.Width);
+
+                return generator.GenerateInstances(grid, tileSets);
+            }
+
+            if (layout is IHierarchicalTileLayout hierarchical)
+            {
+                var generator =
+                    new QuadTreeInstanceGenerator(resolution);
+
+                return generator.GenerateInstances(
+                    hierarchical,
+                    tileSets,
+                    resolution);
+            }
+
+            return new List<TileInstanceGPU>();
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\MotifInstanceCompositionStrategy.cs ---
 
 // --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTextureCooker.cs ---
 
@@ -2065,27 +2461,6 @@ namespace Truchet
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTextureCooker.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\Direction.cs ---
-
-// TODO ROADMAP:
-// [x] Direction enum
-// [ ] Use the one from gamelib
-// [ ] Add diagonal support
-// [ ] Add vector conversion helpers
-
-namespace Truchet
-{
-    public enum Direction
-    {
-        Right,
-        Up,
-        Left,
-        Down
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\Direction.cs ---
-
 // --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookerEditor.cs ---
 
 // TODO ROADMAP:
@@ -2121,27 +2496,25 @@ namespace Truchet
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookerEditor.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierRandom.cs ---
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierDirectionPattern.cs ---
 
 // TODO ROADMAP:
-// [x] Component-based random layout modifier
-// [x] Multi-TileSet support
-// [x] Allowed rotation index control
-// [x] Inherit region support from base class
-// [ ] Add deterministic seed support
-// [ ] Add weighted tile selection
-// [ ] Add adjacency-aware randomization
-// [ ] Add tile filtering
+// [x] Direction pattern modifier
+// [x] Multi-line rotation pattern
+// [ ] Add validation warnings
+// [ ] Add tile index strategy
+// [ ] Add connectivity awareness
 
+using NaughtyAttributes;
 using UnityEngine;
 
 namespace Truchet
 {
-    public class TileMapModifierRandom : TileMapModifier
+    public class TileMapModifierDirectionPattern : TileMapModifier
     {
-        [SerializeField] private int[] _allowedRotations = { 0, 1, 2, 3 };
-        
-        
+        [ResizableTextArea]
+        [SerializeField] private string _rotationPattern;
+
         public override void Apply(IGridLayout layout)
         {
             if (!enabled)
@@ -2150,96 +2523,659 @@ namespace Truchet
             if (_tileSet == null || _tileSet.tiles == null)
                 return;
 
-            bool useCustomRotations =
-                _allowedRotations != null && _allowedRotations.Length > 0;
+            if (string.IsNullOrWhiteSpace(_rotationPattern))
+                return;
+
+            string[] rows = _rotationPattern
+                .Replace("\r", "")
+                .Split('\n');
+
+            if (rows.Length == 0)
+                return;
 
             GetClampedRegion(layout, out int startX, out int startY, out int endX, out int endY);
 
             for (int y = startY; y < endY; y++)
             {
+                string rowPattern = rows[y % rows.Length];
+
+                if (string.IsNullOrEmpty(rowPattern))
+                    continue;
+
                 for (int x = startX; x < endX; x++)
                 {
-                    int tileIndex = Random.Range(0, _tileSet.tiles.Length);
+                    char c = rowPattern[x % rowPattern.Length];
 
-                    int rotation;
-
-                    if (useCustomRotations)
-                    {
-                        int r = Random.Range(0, _allowedRotations.Length);
-                        rotation = Mathf.Clamp(_allowedRotations[r], 0, 3);
-                    }
-                    else
-                    {
-                        rotation = Random.Range(0, 4);
-                    }
+                    int rotation = DirectionToRotation(c);
+                    int tileIndex = x % _tileSet.tiles.Length;
 
                     layout.SetTile(x, y, TileSetId, tileIndex, rotation);
                 }
             }
         }
+
+        private int DirectionToRotation(char c)
+        {
+            switch (char.ToUpperInvariant(c))
+            {
+                case 'L': return 0;
+                case 'U': return 1;
+                case 'R': return 2;
+                case 'D': return 3;
+                default: return 0;
+            }
+        }
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierRandom.cs ---
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\TileMapModifierDirectionPattern.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\Backends\GPUInstancedRenderBackend.cs ---
 
 // TODO ROADMAP:
-// [x] Polymorphic render instruction model
-// [x] Rectangle, Ellipse, Pie, Bezier instructions
-// [x] Color-aware render instructions (Black / White)
-// [ ] Add LineInstruction
-// [ ] Add PolygonInstruction
-// [ ] Add GradientInstruction
-// [ ] Add Anti-aliased rasterization support
+// [x] Persistent buffer reuse
+// [x] Intelligent resize strategy
+// [x] Proper bounds handling
+// [ ] Add SDF shader integration
+// [ ] Add texture array support
+// [ ] Add frustum culling
+// [ ] Add LOD support
+
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+namespace Truchet
+{
+    public class GPUInstancedRenderBackend : IRenderBackend
+    {
+        
+        private static readonly int TileArrayID =
+            Shader.PropertyToID("_TileArray");
+        
+        
+        private ComputeBuffer _instanceBuffer;
+        private ComputeBuffer _argsBuffer;
+        private MaterialPropertyBlock _mpb;
+        private readonly Mesh _quadMesh;
+        private readonly Material _material;
+
+        private int _capacity = 0;
+
+        private static readonly int InstancesID =
+            Shader.PropertyToID("_Instances");
+
+        public GPUInstancedRenderBackend(Material material)
+        {
+            _material = material;
+            _quadMesh = GenerateQuadMesh();
+
+            CreateArgsBuffer();
+        }
+
+        
+        public void SetTileTextureArray(Texture2DArray array)
+        {
+            _material.SetTexture(TileArrayID, array);
+        }
+
+        public void RenderInstances(
+            List<TileInstanceGPU> instances,
+            int resolution)
+        {
+            if (instances == null || instances.Count == 0)
+                return;
+            
+            Debug.Log("RenderInstances called with " + instances.Count);
+
+            EnsureCapacity(instances.Count);
+
+            _instanceBuffer.SetData(instances);
+
+// bind directly on material
+            _material.SetBuffer(InstancesID, _instanceBuffer);
+
+            UpdateArgsBuffer(instances.Count);
+
+            Bounds bounds = new Bounds(
+                Vector3.zero,
+                Vector3.one * 100000f);
+
+            Graphics.DrawMeshInstancedIndirect(
+                _quadMesh,
+                0,
+                _material,
+                bounds,
+                _argsBuffer);
+        }
+
+        private void EnsureCapacity(int required)
+        {
+            if (required <= _capacity)
+                return;
+
+            Debug.Log("Creating instance buffer with capacity " + required);
+            
+            //int stride = sizeof(float) * 16 + sizeof(uint) * 2;
+            int stride = 80;
+
+            _instanceBuffer?.Release();
+
+            _capacity = Mathf.NextPowerOfTwo(required);
+
+            _instanceBuffer =
+                new ComputeBuffer(_capacity, stride);
+        }
+
+        private void CreateArgsBuffer()
+        {
+            _argsBuffer = new ComputeBuffer(
+                1,
+                5 * sizeof(uint),
+                ComputeBufferType.IndirectArguments);
+        }
+
+        private void UpdateArgsBuffer(int instanceCount)
+        {
+            uint[] args = new uint[5]
+            {
+                _quadMesh.GetIndexCount(0),
+                (uint)instanceCount,
+                _quadMesh.GetIndexStart(0),
+                _quadMesh.GetBaseVertex(0),
+                0
+            };
+
+            _argsBuffer.SetData(args);
+        }
+
+        private Mesh GenerateQuadMesh()
+        {
+            Mesh mesh = new Mesh();
+
+            mesh.vertices = new Vector3[]
+            {
+                new Vector3(-0.5f, -0.5f, 0),
+                new Vector3( 0.5f, -0.5f, 0),
+                new Vector3( 0.5f,  0.5f, 0),
+                new Vector3(-0.5f,  0.5f, 0)
+            };
+
+            mesh.uv = new Vector2[]
+            {
+                new Vector2(0,0),
+                new Vector2(1,0),
+                new Vector2(1,1),
+                new Vector2(0,1)
+            };
+
+            mesh.triangles = new int[]
+            {
+                0,1,2,
+                0,2,3
+            };
+
+            mesh.RecalculateBounds();
+
+            return mesh;
+        }
+        
+        
+        //
+        // public void Dispose()
+        // {
+        //     _instanceBuffer?.Release();
+        //     _argsBuffer?.Release();
+        //     _instanceBuffer = null;
+        //     _argsBuffer = null;
+        // }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\Backends\GPUInstancedRenderBackend.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\TileSetTextureArrayBuilder.cs ---
+
+using Truchet;
+using UnityEngine;
+
+/// <summary>
+/// TEMPORARY GPU RESOURCE BUILDER
+/// --------------------------------
+/// 
+/// Purpose:
+/// --------
+/// Converts a TileSet (collection of Tile ScriptableObjects with Texture2D)
+/// into a Texture2DArray for GPU sampling in instanced rendering.
+/// 
+/// Why this exists:
+/// ----------------
+/// - Our current rendering backend is GPU instanced.
+/// - Each tile instance carries a motifIndex.
+/// - The shader needs a single GPU resource containing all tile textures.
+/// - Texture2DArray allows sampling by slice index (motifIndex).
+/// 
+/// This is NOT the final SDF system.
+/// It is only a fast bridge to:
+/// 
+///     Layout → Instances → TextureArray → Shader sampling
+/// 
+/// so we can verify the GPU pipeline end-to-end.
+///
+/// Future Direction:
+/// -----------------
+/// - Replace PNG textures with SDF textures.
+/// - Potentially generate Texture2DArray at import time.
+/// - Possibly support multiple TileSets.
+/// - Possibly support TextureArray caching.
+/// - Eventually abstract into a proper GPU resource layer.
+///
+/// This class exists purely to validate rendering correctness.
+/// It may be deleted or refactored once SDF pipeline is finalized.
+/// </summary>
+public static class TileSetTextureArrayBuilder
+{
+    public static Texture2DArray Build(TileSet tileSet)
+    {
+        if (tileSet == null || tileSet.tiles.Length == 0)
+            return null;
+
+        // Canonical size (choose first tile size)
+        int width = tileSet.tiles[0].texture.width;
+        int height = tileSet.tiles[0].texture.height;
+
+        int count = tileSet.tiles.Length;
+
+        // Force RGBA32 uncompressed
+        Texture2DArray array = new Texture2DArray(
+            width,
+            height,
+            count,
+            TextureFormat.RGBA32,
+            false);
+
+        for (int i = 0; i < count; i++)
+        {
+            Texture2D source = tileSet.tiles[i].texture;
+
+            if (source.width != width || source.height != height)
+            {
+                Debug.LogError(
+                    $"Tile resolution mismatch in TileSet: " +
+                    $"{source.width}x{source.height} vs expected {width}x{height}");
+
+                continue;
+            }
+
+            // Force CPU read (this decompresses if needed)
+            Color[] pixels = source.GetPixels();
+
+            array.SetPixels(pixels, i);
+        }
+
+        array.Apply();
+        return array;
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\TileSetTextureArrayBuilder.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileSet.cs ---
+
+// TODO ROADMAP:
+// [x] TileSet asset (collection of tiles)
+// [ ] Add lookup by connectivity
+// [ ] Add weighted lookup
+// [ ] Add adjacency filtering helpers
+// [ ] Add runtime dictionary cache
 
 using UnityEngine;
 
 namespace Truchet
 {
-    internal enum DrawColor
+    [CreateAssetMenu(
+        fileName = "TileSet",
+        menuName = "Truchet/Tiles/Tile Set",
+        order = 1)]
+    public class TileSet : ScriptableObject
     {
-        Black,
-        White
-    }
-
-    internal abstract class TileRenderInstruction
-    {
-        // Default = Black (backward compatible)
-        public DrawColor Color = DrawColor.Black;
-    }
-
-    internal sealed class RectangleInstruction : TileRenderInstruction
-    {
-        public Vector2 Center;
-        public Vector2 Size;
-    }
-
-    internal sealed class EllipseInstruction : TileRenderInstruction
-    {
-        public Vector2 Center;
-        public Vector2 Size;
-    }
-
-    internal sealed class PieInstruction : TileRenderInstruction
-    {
-        public Vector2 Center;
-        public Vector2 Size;
-        public float StartAngle;
-        public float SweepAngle;
-    }
-
-    internal sealed class BezierInstruction : TileRenderInstruction
-    {
-        public Vector2 P0;
-        public Vector2 P1;
-        public Vector2 P2;
-        public Vector2 P3;
-        public float Thickness;
+        public Tile[] tiles;
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileSet.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\MeshCompositionResult.cs ---
+
+    using UnityEngine;
+
+    namespace Truchet
+    {
+        // TODO ROADMAP:
+        // [x] Base composition result abstraction
+        // [ ] Add instance result type
+        // [ ] Add mesh result type
+        // [ ] Add GPU buffer result type
+        // [ ] Add field (scalar grid) result type
+        // [ ] Add streaming / chunked result support
+
+        /// <summary>
+        /// Marker interface for composition outputs.
+        /// 
+        /// Composition layer produces geometry/data in a renderer-agnostic format.
+        /// Render backends consume these results.
+        /// 
+        /// This abstraction allows:
+        /// - Multiple composition strategies
+        /// - Multiple rendering backends
+        /// - Strict separation of responsibilities
+        /// </summary>
+        public interface ICompositionResult
+        {
+        }
+
+
+        // TODO ROADMAP:
+        // [x] Mesh-based composition result container
+        // [ ] Add submesh support
+        // [ ] Add material indexing
+        // [ ] Add bounds caching
+        // [ ] Add chunked mesh support
+        // [ ] Add GPU buffer conversion helpers
+        // [ ] Add adjacency metadata (for dual contouring, MS variants)
+        // [ ] Add LOD metadata
+
+
+        /// <summary>
+        /// Represents geometry generated by a composition strategy.
+        ///
+        /// This is typically produced by:
+        /// - MarchingSquaresCompositionStrategy
+        /// - Future DualContouringCompositionStrategy
+        /// - Any field-based mesh generator
+        ///
+        /// IMPORTANT:
+        /// This class does NOT generate geometry.
+        /// It is a pure data container.
+        ///
+        /// Responsibilities:
+        /// - Store mesh reference
+        /// - Optionally store resolution / metadata
+        /// - Provide future extension points
+        ///
+        /// It must NOT:
+        /// - Know about layout
+        /// - Know about tiles
+        /// - Know about rendering APIs
+        /// - Contain marching squares logic
+        /// </summary>
+        public class MeshCompositionResult : ICompositionResult
+        {
+            /// <summary>
+            /// Generated mesh.
+            /// 
+            /// Typically:
+            /// - Entire grid mesh
+            /// - Or a chunked region mesh
+            /// </summary>
+            public Mesh Mesh;
+
+            /// <summary>
+            /// Logical resolution of the composed field.
+            /// 
+            /// Example:
+            /// - Grid resolution for Marching Squares
+            /// - Scalar field resolution
+            ///
+            /// This is metadata only.
+            /// Renderer may use it for bounds calculation.
+            /// </summary>
+            public int Resolution;
+
+            /// <summary>
+            /// World-space bounds of the generated mesh.
+            ///
+            /// Composition layer should set this.
+            /// Renderer may use it for culling.
+            /// </summary>
+            public Bounds Bounds;
+
+            /// <summary>
+            /// Indicates whether this mesh was generated from:
+            /// - SDF field
+            /// - Discrete mask field
+            ///
+            /// Pure metadata.
+            /// </summary>
+            public bool FromSDF;
+
+            public MeshCompositionResult(
+                Mesh mesh,
+                int resolution,
+                Bounds bounds,
+                bool fromSdf)
+            {
+                Mesh = mesh;
+                Resolution = resolution;
+                Bounds = bounds;
+                FromSDF = fromSdf;
+            }
+        }
+    }
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\MeshCompositionResult.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\GPUTileRendering.cs ---
+
+using UnityEngine;
+using System.Runtime.InteropServices;
+
+namespace Truchet
+{
+    // GPU-ready instance representation
+
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct TileInstanceGPU
+    {
+        public Matrix4x4 transform;
+        public uint motifIndex;
+        public uint level;
+
+        // padding to 16-byte alignment
+        private uint _pad0;
+        private uint _pad1;
+    }
+
+    // Centralized transform builder
+    public static class TileMatrixBuilder
+    {
+        public static Matrix4x4 Build(
+            Vector2 center,
+            float size,
+            int rotation90)
+        {
+            float rotation = rotation90 * 90f;
+
+            return Matrix4x4.TRS(
+                new Vector3(center.x, center.y, 0f),
+                Quaternion.Euler(0f, 0f, rotation),
+                new Vector3(size, size, 1f)
+            );
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Rendering\GPUTileRendering.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TileMapRuntime.cs ---
+
+using UnityEngine;
+using System.Collections.Generic;
+using NaughtyAttributes;
+
+namespace Truchet
+{
+    public class TileMapRuntime : MonoBehaviour
+    {
+        public enum LayoutMode
+        {
+            RegularGrid,
+            QuadTree
+        }
+
+        [Header("Layout")]
+        [SerializeField] private LayoutMode _layoutMode = LayoutMode.RegularGrid;
+        [SerializeField] private int _width = 8;
+        [SerializeField] private int _height = 8;
+
+        [Header("Rendering")]
+        [SerializeField] private int _tileSizePixels = 1;   // 🔥 Keep small for now
+        [SerializeField] private Material _gpuMaterial;
+
+        private ITileCompositionStrategy _compositionStrategy;
+        private IRenderBackend _renderBackend;
+
+        private Texture2DArray _tileArray;
+
+        // 🔥 Cache instances
+        private List<TileInstanceGPU> _instances;
+        private int _resolution;
+
+        private void Start()
+        {
+            if (_gpuMaterial == null)
+            {
+                Debug.LogError("GPU Material not assigned.");
+                return;
+            }
+
+            _compositionStrategy =
+                new MotifInstanceCompositionStrategy();
+
+            _renderBackend =
+                new GPUInstancedRenderBackend(_gpuMaterial);
+
+            Generate();
+        }
+
+        private void Update()
+        {
+            if (_instances == null || _instances.Count == 0)
+                return;
+
+            _renderBackend.RenderInstances(_instances, _resolution);
+        }
+
+        private void Generate()
+        {
+            switch (_layoutMode)
+            {
+                case LayoutMode.RegularGrid:
+                    GenerateRegularGrid();
+                    break;
+
+                case LayoutMode.QuadTree:
+                    GenerateQuadTree();
+                    break;
+            }
+        }
+
+        private void GenerateRegularGrid()
+        {
+            RegularGridTileMap map =
+                new RegularGridTileMap(_width, _height);
+
+            var (tileSets, modifiers) = CollectModifiers();
+
+            foreach (var mod in modifiers)
+                mod.Apply(map);
+
+            _resolution = _width * _tileSizePixels;
+
+            _instances =
+                _compositionStrategy.ComposeInstances(
+                    map,
+                    tileSets,
+                    _resolution);
+
+            Debug.Log("Generated instances: " + _instances.Count);
+        }
+
+        private void GenerateQuadTree()
+        {
+            QuadTreeTileMap map =
+                new QuadTreeTileMap(1f);
+
+            var (tileSets, modifiers) = CollectModifiers();
+
+            foreach (var mod in modifiers)
+                mod.Apply(map);
+
+            _resolution = _width * _tileSizePixels;
+
+            _instances =
+                _compositionStrategy.ComposeInstances(
+                    map,
+                    tileSets,
+                    _resolution);
+
+            Debug.Log("Generated instances: " + _instances.Count);
+        }
+
+        private (TileSet[], TileMapModifier[]) CollectModifiers()
+        {
+            TileMapModifier[] modifiers =
+                GetComponents<TileMapModifier>();
+
+            List<TileSet> tileSets = new List<TileSet>();
+
+            foreach (var mod in modifiers)
+            {
+                if (mod.TileSet == null)
+                    continue;
+
+                mod.TileSetId = tileSets.Count;
+                tileSets.Add(mod.TileSet);
+            }
+
+            // Build Texture2DArray for first tileset only (temporary)
+            if (tileSets.Count > 0)
+            {
+                _tileArray = TileSetTextureArrayBuilder.Build(tileSets[0]);
+                _renderBackend.SetTileTextureArray(_tileArray);
+            }
+
+            return (tileSets.ToArray(), modifiers);
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TileMapRuntime.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\ITileCompositionStrategy.cs ---
+
+// TODO ROADMAP:
+// [x] Composition abstraction layer
+// [ ] Add MarchingSquaresCompositionStrategy
+// [ ] Add SDFFieldCompositionStrategy
+// [ ] Add mesh-based composition output
+// [ ] Add compute-shader driven composition
+
+using System.Collections.Generic;
+
+namespace Truchet
+{
+    public interface ITileCompositionStrategy
+    {
+        List<TileInstanceGPU> ComposeInstances(
+            object layout, // We temporarily use object layout to allow both IGridLayout and IHierarchicalTileLayout.
+            TileSet[] tileSets,
+            int resolution);
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\ITileCompositionStrategy.cs ---
 
 // --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\Tile.cs ---
 
@@ -2282,816 +3218,148 @@ namespace Truchet
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\Tile.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridTileMap.cs ---
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\MarchingSquaresCompositionStrategy.cs ---
 
 // TODO ROADMAP:
-// [x] Basic rectangular grid implementation
-// [x] Renamed from RegularGridLayout
-// [ ] Add neighbor query API
-// [ ] Add iteration helpers
-// [ ] Add deterministic fill utilities
-// [ ] Add resize support
-
-namespace Truchet
-{
-    public class RegularGridTileMap : IGridLayout
-    {
-        private readonly GridCell[,] _cells;
-
-        public int Width { get; }
-        public int Height { get; }
-
-        public RegularGridTileMap(int width, int height)
-        {
-            Width = width;
-            Height = height;
-
-            _cells = new GridCell[width, height];
-
-            for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-                _cells[x, y] = new GridCell(x, y);
-        }
-
-        public bool IsValid(int x, int y)
-        {
-            return x >= 0 && y >= 0 && x < Width && y < Height;
-        }
-
-        public GridCell GetCell(int x, int y)
-        {
-            if (!IsValid(x, y))
-                throw new System.ArgumentOutOfRangeException();
-
-            return _cells[x, y];
-        }
-
-        public void SetTile(int x, int y, int tileSetId, int tileIndex, int rotation)
-        {
-            if (!IsValid(x, y))
-                return;
-
-            GridCell cell = _cells[x, y];
-            cell.TileSetId = tileSetId;
-            cell.TileIndex = tileIndex;
-            cell.Rotation = rotation;
-
-            _cells[x, y] = cell;
-        }
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridTileMap.cs ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridInstanceGenerator.cs ---
-
-// TODO ROADMAP:
-// [x] CPU texture compositing renderer
-// [x] Multi-TileSet support
-// [x] Two-pass rendering (classical + winged)
-// [x] Winged tile overlap support
-// [x] Transparent background (only tiles visible)
-// [ ] Add dirty-region updates
-// [ ] Add chunked rendering
-// [ ] Add GPU backend swap
-// [ ] Add multiscale support
-// [ ] Add tile caching
+// [x] Introduce Marching Squares composition placeholder
+// [ ] Refactor ITileCompositionStrategy to return ICompositionResult
+// [ ] Replace List<TileInstanceGPU> return type with MeshCompositionResult
+// [ ] Add scalar field sampling abstraction (SDF / discrete mask)
+// [ ] Implement grid-based marching squares case evaluation
+// [ ] Generate mesh vertices / indices
+// [ ] Add chunked mesh generation support
+// [ ] Add QuadTree-aware adaptive sampling
+// [ ] Add LOD support
+// [ ] Add GPU compute-based field sampling (future)
+// [ ] Add SDF blending support
+// [ ] Add deterministic seed-based field evaluation
 
 using System.Collections.Generic;
-using UnityEngine;
-
-namespace Truchet
-{
-    public class RegularGridInstanceGenerator
-    {
-        private readonly int _tileSizePixels;
-
-        public RegularGridInstanceGenerator(int tileSizePixels)
-        {
-            _tileSizePixels = tileSizePixels;
-        }
-
-        public List<TileInstanceGPU> GenerateInstances(
-            IGridLayout layout,
-            TileSet[] tileSets)
-        {
-            List<TileInstanceGPU> instances = new List<TileInstanceGPU>();
-
-            for (int y = 0; y < layout.Height; y++)
-            {
-                for (int x = 0; x < layout.Width; x++)
-                {
-                    GridCell cell = layout.GetCell(x, y);
-
-                    if (!IsValidCell(cell, tileSets, out Tile tile))
-                        continue;
-
-                    float tileSize = _tileSizePixels;
-
-                    Vector2 center = new Vector2(
-                        x * tileSize + tileSize * 0.5f,
-                        y * tileSize + tileSize * 0.5f);
-
-                    Matrix4x4 matrix =
-                        TileMatrixBuilder.Build(center, tileSize, cell.Rotation);
-
-                    instances.Add(new TileInstanceGPU
-                    {
-                        transform = matrix,
-                        motifIndex = (uint)cell.TileIndex,
-                        level = 0
-                    });
-                }
-            }
-
-            return instances;
-        }
-
-        public Texture2D Render(IGridLayout layout, TileSet[] tileSets, bool debugLines)
-        {
-            int width = layout.Width * _tileSizePixels;
-            int height = layout.Height * _tileSizePixels;
-
-            Texture2D output =
-                new Texture2D(width, height, TextureFormat.RGBA32, false);
-
-            Color[] pixels = new Color[width * height];
-
-            // --------------------------------------------------
-            // Transparent background
-            // --------------------------------------------------
-
-            Color clear = new Color(0, 0, 0, 0);
-
-            for (int i = 0; i < pixels.Length; i++)
-                pixels[i] = clear;
-
-            // --------------------------------------------------
-            // PASS 1 — Classical Tiles
-            // --------------------------------------------------
-
-            for (int y = 0; y < layout.Height; y++)
-            {
-                for (int x = 0; x < layout.Width; x++)
-                {
-                    GridCell cell = layout.GetCell(x, y);
-
-                    if (!IsValidCell(cell, tileSets, out Tile tile))
-                        continue;
-
-                    if (tile.IsWinged)
-                        continue;
-
-                    BlitClassic(tile, pixels, width, x, y, cell.Rotation);
-                }
-            }
-
-            // --------------------------------------------------
-            // PASS 2 — Winged Tiles
-            // --------------------------------------------------
-
-            for (int y = 0; y < layout.Height; y++)
-            {
-                for (int x = 0; x < layout.Width; x++)
-                {
-                    GridCell cell = layout.GetCell(x, y);
-
-                    if (!IsValidCell(cell, tileSets, out Tile tile))
-                        continue;
-
-                    if (!tile.IsWinged)
-                        continue;
-
-                    BlitWinged(tile, pixels, width, height, x, y, cell.Rotation);
-                }
-            }
-
-            if (debugLines)
-                DrawAxis(pixels, width, height);
-
-            output.SetPixels(pixels);
-            output.Apply();
-
-            return output;
-        }
-
-        // --------------------------------------------------
-        // Helpers
-        // --------------------------------------------------
-
-        private bool IsValidCell(GridCell cell, TileSet[] tileSets, out Tile tile)
-        {
-            tile = null;
-
-            if (cell.TileSetId < 0 ||
-                cell.TileSetId >= tileSets.Length)
-                return false;
-
-            TileSet tileSet = tileSets[cell.TileSetId];
-
-            if (cell.TileIndex < 0 ||
-                cell.TileIndex >= tileSet.tiles.Length)
-                return false;
-
-            tile = tileSet.tiles[cell.TileIndex];
-
-            if (tile == null || tile.texture == null)
-                return false;
-
-            return true;
-        }
-
-        // --------------------------------------------------
-        // Classical Blit
-        // --------------------------------------------------
-
-        private void BlitClassic(
-            Tile tile,
-            Color[] target,
-            int targetWidth,
-            int gridX,
-            int gridY,
-            int rotation)
-        {
-            Color[] source = tile.texture.GetPixels();
-
-            int startX = gridX * _tileSizePixels;
-            int startY = gridY * _tileSizePixels;
-
-            for (int y = 0; y < _tileSizePixels; y++)
-            for (int x = 0; x < _tileSizePixels; x++)
-            {
-                int srcIndex = GetRotatedIndex(x, y, rotation);
-
-                int tx = startX + x;
-                int ty = startY + y;
-
-                Color c = source[srcIndex];
-
-                if (c.a <= 0f)
-                    continue;
-
-                target[ty * targetWidth + tx] = c;
-            }
-        }
-
-        // --------------------------------------------------
-        // Winged Blit
-        // --------------------------------------------------
-
-        private void BlitWinged(
-            Tile tile,
-            Color[] target,
-            int targetWidth,
-            int targetHeight,
-            int gridX,
-            int gridY,
-            int rotation)
-        {
-            Texture2D tex = tile.texture;
-            Color[] source = tex.GetPixels();
-
-            int renderSize = _tileSizePixels * 2;
-
-            int centerX = gridX * _tileSizePixels + _tileSizePixels / 2;
-            int centerY = gridY * _tileSizePixels + _tileSizePixels / 2;
-
-            int startX = centerX - _tileSizePixels;
-            int startY = centerY - _tileSizePixels;
-
-            int sourceRes = tex.width;
-
-            for (int y = 0; y < renderSize; y++)
-            {
-                for (int x = 0; x < renderSize; x++)
-                {
-                    int tx = startX + x;
-                    int ty = startY + y;
-
-                    if (tx < 0 || tx >= targetWidth ||
-                        ty < 0 || ty >= targetHeight)
-                        continue;
-
-                    int srcX = Mathf.FloorToInt((float)x / renderSize * sourceRes);
-                    int srcY = Mathf.FloorToInt((float)y / renderSize * sourceRes);
-
-                    int srcIndex = GetRotatedIndex(srcX, srcY, rotation, sourceRes);
-
-                    Color c = source[srcIndex];
-
-                    if (c.a <= 0f)
-                        continue;
-
-                    target[ty * targetWidth + tx] = c;
-                }
-            }
-        }
-
-        // --------------------------------------------------
-
-        private int GetRotatedIndex(int x, int y, int rotation)
-        {
-            return GetRotatedIndex(x, y, rotation, _tileSizePixels);
-        }
-
-        private int GetRotatedIndex(int x, int y, int rotation, int resolution)
-        {
-            switch (rotation % 4)
-            {
-                case 0: return y * resolution + x;
-                case 1: return (resolution - 1 - x) * resolution + y;
-                case 2: return (resolution - 1 - y) * resolution +
-                               (resolution - 1 - x);
-                case 3: return x * resolution +
-                               (resolution - 1 - y);
-                default: return y * resolution + x;
-            }
-        }
-
-        private void DrawAxis(Color[] pixels, int width, int height)
-        {
-            int size = Mathf.Min(32, width / 6);
-
-            int originX = 4;
-            int originY = 4;
-
-            for (int i = 0; i < size; i++)
-            {
-                int x = originX + i;
-                int y = originY;
-
-                if (x >= 0 && x < width && y >= 0 && y < height)
-                    pixels[y * width + x] = Color.red;
-            }
-
-            for (int i = 0; i < size; i++)
-            {
-                int x = originX;
-                int y = originY + i;
-
-                if (x >= 0 && x < width && y >= 0 && y < height)
-                    pixels[y * width + x] = Color.green;
-            }
-        }
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridInstanceGenerator.cs ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap-readme.md ---
-
-# QuadTreeTileMap --- Architecture & Design Specification
-
-## Overview
-
-QuadTreeTileMap is a mutable hierarchical spatial container supporting
-both:
-
--   Uniform grid access (Mode A)
--   Adaptive hierarchical access (Mode B)
-
-It is designed to support: - Deterministic procedural generation -
-Runtime structural mutation (subdivide / collapse) - Designer patch
-workflows - Modifier-driven content changes - Future winged multiscale
-rendering
-
-The TileMap is strictly a container. It does not generate content
-automatically. All generation logic is handled by modifiers.
-
-------------------------------------------------------------------------
-
-# Core Architectural Principles
-
-1.  Stable Node Identity\
-2.  Deterministic Structural Behavior\
-3.  Canonical Child Ordering\
-4.  Strict Mode Separation\
-5.  No Hidden Side Effects\
-6.  Spatial Traversal over Morton Encoding\
-7.  Modifiers Own Content Generation
-
-------------------------------------------------------------------------
-
-# Interfaces
-
-QuadTreeTileMap implements:
-
--   IGridLayout (Mode A only)
--   IHierarchicalTileLayout (always available)
-
-------------------------------------------------------------------------
-
-# Modes
-
-## Mode A --- Uniform Depth (Grid Compatible)
-
-Valid only if:
-
-All active leaves share the same Level.
-
-When valid:
-
--   Width = Height = 2\^depth
--   Spatial traversal resolves (x, y)
--   IGridLayout is fully supported
-
-If not uniform:
-
--   IGridLayout methods throw InvalidOperationException
-
-------------------------------------------------------------------------
-
-## Mode B --- Adaptive Hierarchical Mode
-
--   Leaves may exist at mixed levels
--   IGridLayout is invalid
--   IHierarchicalTileLayout remains fully usable
-
-------------------------------------------------------------------------
-
-# Canonical Child Ordering
-
-Child indices are permanently defined as:
-
-```
-  2   3
-  --- ---
-  0   1
-```
-
-0 = bottom-left\
-1 = bottom-right\
-2 = top-left\
-3 = top-right
-
-This ordering must never change.
-
-Collapse behavior depends on this ordering.
-
-------------------------------------------------------------------------
-
-# Node Structure
-
-Each node contains:
-
--   X, Y (spatial origin)
--   Size
--   Level
--   IsLeaf
--   IsActive
--   ChildIndex
--   TileSetId
--   TileIndex
--   Rotation
-
-Inactive nodes retain their data.
-
-Nodes are never physically removed from memory.
-
-------------------------------------------------------------------------
-
-# Stable Node Indices
-
--   Node indices never shift.
--   Collapse marks children inactive.
--   Subdivision may reuse indices from a free-list.
--   External systems (patch, modifiers) may safely store node indices.
-
-------------------------------------------------------------------------
-
-# Subdivision Rules
-
-When Subdivide(node):
-
--   Only valid if node is a leaf.
--   4 children are created.
--   Children inherit parent tile values.
--   Parent becomes non-leaf.
--   Uniform state is recalculated.
-
-------------------------------------------------------------------------
-
-# Collapse Rules
-
-When Collapse(node):
-
--   Only valid if node is non-leaf.
--   Parent tile becomes child\[0\] tile.
--   Children are marked inactive.
--   Children retain stored tile data.
--   Uniform state is recalculated.
-
-No automatic merging heuristics exist.
-
-------------------------------------------------------------------------
-
-# Uniform Detection
-
-Uniform mode is valid when:
-
-All active leaves have identical Level.
-
-This is recalculated after every structural mutation.
-
-------------------------------------------------------------------------
-
-# Spatial Traversal
-
-Grid access uses spatial traversal:
-
--   Start at root
--   Descend by quadrant selection
--   Resolve leaf in O(depth)
-
-Morton indexing is intentionally NOT used.
-
-Reason:
-
--   Preserves structural semantics
--   Works for adaptive trees
--   Safer for mutable systems
--   Easier for patch workflows
-
-------------------------------------------------------------------------
-
-# Determinism
-
--   QuadTreeTileMap does not auto-generate randomness.
-
--   If random subdivision is implemented, it must use:
-
-    nodeSeed = Hash(globalSeed, node.Level, node.X, node.Y)
-
--   No UnityEngine.Random allowed.
-
-Tree structure changes only through explicit calls.
-
-------------------------------------------------------------------------
-
-# Mutability
-
-Allowed operations:
-
--   Subdivide(node)
--   Collapse(node)
--   SetTileByNode(node)
--   SetTile(x,y) (uniform mode only)
-
-Structure never rebuilds implicitly.
-
-------------------------------------------------------------------------
-
-# Modifier Responsibility
-
-Modifiers:
-
--   Own procedural generation
--   Own random behavior (seeded)
--   Mutate tile content
--   Do not own structure unless explicitly intended
-
-TileMap is a passive container.
-
-------------------------------------------------------------------------
-
-# Rendering Implications
-
-Grid renderer operates in Mode A.
-
-Future winged multiscale renderer will use:
-
--   IHierarchicalTileLayout
--   Node spatial data
--   Level-based scaling
-
-------------------------------------------------------------------------
-
-# Non-Goals
-
-QuadTreeTileMap will NOT:
-
--   Auto-balance structure
--   Auto-generate content
--   Implicitly rebuild on seed change
--   Hide invalid grid access in adaptive mode
-
-------------------------------------------------------------------------
-
-# Future Extensions
-
--   Adaptive view-dependent LOD
--   Burst-compatible node storage
--   GPU transform streaming
--   Constraint-based subdivision modifiers
-
-------------------------------------------------------------------------
-
-# Summary
-
-QuadTreeTileMap is:
-
--   Deterministic
--   Mutable
--   Designer-safe
--   Dual-interface compliant
--   Strictly structured
--   Future-proof for multiscale winged rendering
-
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadTreeTileMap-readme.md ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadNodeInfo.cs ---
-
-// TODO ROADMAP:
-// [x] Quad node info struct
-// [ ] Add transform helper
-// [ ] Add world-space conversion helpers
-
-namespace Truchet
-{
-    public struct QuadNodeInfo
-    {
-        public float X;
-        public float Y;
-        public float Size;
-        public int Level;
-
-        public bool IsLeaf;
-        public bool IsActive;
-
-        public int ChildIndex;
-
-        public int TileSetId;
-        public int TileIndex;
-        public int Rotation;
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\QuadTree\QuadNodeInfo.cs ---
-
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\QuadTreeSubdivisionModifierRandom.cs ---
-
-// TODO ROADMAP:
-// [x] Basic recursive subdivision
-// [x] Random subdivision probability
-// [x] Leaf tile assignment
-// [x] Use inherited grid region mapped to 0..1 spatial region
-// [ ] Deterministic seed support
-// [ ] Parity-aware tile assignment
-// [ ] Adjacency-aware constraints
-// [ ] View-dependent subdivision
-// [ ] Burst-compatible refactor
-
-using UnityEngine;
 
 namespace Truchet
 {
     /// <summary>
-    /// Structural QuadTree modifier.
-    /// Interprets inherited grid region (_regionMin/_regionMax)
-    /// relative to QuadTree logical resolution and maps it into
-    /// normalized 0..1 spatial domain.
+    /// Composition strategy that converts layout topology
+    /// into continuous surface geometry using the Marching Squares algorithm.
     ///
-    /// QuadTree root always occupies [0,1] x [0,1].
-    /// LogicalWidth/LogicalHeight define how grid coordinates
-    /// map into that space.
+    /// ARCHITECTURAL ROLE:
+    /// ---------------------
+    /// This class belongs to the Composition layer.
+    /// It interprets layout data and produces mesh geometry.
+    ///
+    /// It MUST NOT:
+    /// - Render anything
+    /// - Call Graphics APIs
+    /// - Access materials or shaders
+    /// - Modify layout structure
+    ///
+    /// It WILL:
+    /// - Sample scalar field from layout (SDF or mask-based)
+    /// - Evaluate marching squares cases per cell
+    /// - Generate vertex/index buffers
+    /// - Produce a MeshCompositionResult
+    ///
+    /// FUTURE DESIGN:
+    /// --------------
+    /// Layout
+    ///   ↓
+    /// Scalar Field (SDF or discrete mask)
+    ///   ↓
+    /// Marching Squares case evaluation
+    ///   ↓
+    /// MeshCompositionResult
+    ///   ↓
+    /// MeshRenderBackend
+    ///
+    /// NOTE:
+    /// Current return type (List<TileInstanceGPU>) is temporary.
+    /// This will be replaced with ICompositionResult once
+    /// composition abstraction is unified.
     /// </summary>
-    public class QuadTreeSubdivisionModifierRandom : TileMapModifier
+    class MarchingSquaresCompositionStrategy : ITileCompositionStrategy
     {
-        [Header("Subdivision")]
-        [SerializeField, Range(0f, 1f)]
-        private float _subdivideProbability = 0.5f;
-
-        [SerializeField]
-        private int _maxDepth = 3;
-
-        // Derived spatial region (not serialized)
-        private Vector2 _spatialRegionMin;
-        private Vector2 _spatialRegionMax;
-
-        public override void Apply(IGridLayout layout)
+        public List<TileInstanceGPU> ComposeInstances(
+            object layout,
+            TileSet[] tileSets,
+            int resolution)
         {
-            if (!enabled)
-                return;
+            // Placeholder implementation.
+            // Marching Squares does not produce instances.
+            // It produces mesh geometry.
+            //
+            // This method will be removed once
+            // ITileCompositionStrategy is refactored
+            // to return ICompositionResult.
 
-            if (!(layout is QuadTreeTileMap map))
-                return;
-
-            if (_tileSet == null || _tileSet.tiles == null)
-                return;
-
-            ComputeSpatialRegion(map);
-
-            SubdivideRecursive(map, 0);
-
-            foreach (int index in map.GetLeafIndices())
-            {
-                var node = map.GetNode(index);
-
-                if (!NodeInsideRegion(node))
-                    continue;
-
-                int tileIndex = Random.Range(0, _tileSet.tiles.Length);
-                int rotation = Random.Range(0, 4);
-
-                map.SetTileByNode(index, TileSetId, tileIndex, rotation);
-            }
-        }
-
-        // --------------------------------------------------
-        // Region Mapping
-        // --------------------------------------------------
-
-        private void ComputeSpatialRegion(QuadTreeTileMap map)
-        {
-            int logicalWidth = map.LogicalWidth;
-            int logicalHeight = map.LogicalHeight;
-
-            int startX = Mathf.Clamp(_regionMin.x, 0, logicalWidth);
-            int startY = Mathf.Clamp(_regionMin.y, 0, logicalHeight);
-
-            int endX = Mathf.Clamp(_regionMax.x, 0, logicalWidth);
-            int endY = Mathf.Clamp(_regionMax.y, 0, logicalHeight);
-
-            _spatialRegionMin = new Vector2(
-                (float)startX / logicalWidth,
-                (float)startY / logicalHeight);
-
-            _spatialRegionMax = new Vector2(
-                (float)endX / logicalWidth,
-                (float)endY / logicalHeight);
-        }
-
-        // --------------------------------------------------
-        // Recursive Subdivision
-        // --------------------------------------------------
-
-        private void SubdivideRecursive(QuadTreeTileMap map, int nodeIndex)
-        {
-            var node = map.GetNode(nodeIndex);
-
-            if (!node.IsLeaf)
-                return;
-
-            if (node.Level >= _maxDepth)
-                return;
-
-            if (!NodeIntersectsRegion(node))
-                return;
-
-            if (Random.value > _subdivideProbability)
-                return;
-
-            map.Subdivide(nodeIndex);
-
-            node = map.GetNode(nodeIndex);
-            int childStart = node.ChildIndex;
-
-            if (childStart < 0)
-                return;
-
-            for (int i = 0; i < 4; i++)
-            {
-                SubdivideRecursive(map, childStart + i);
-            }
-        }
-
-        // --------------------------------------------------
-        // Region Tests
-        // --------------------------------------------------
-
-        private bool NodeInsideRegion(QuadNodeInfo node)
-        {
-            float minX = node.X;
-            float minY = node.Y;
-            float maxX = node.X + node.Size;
-            float maxY = node.Y + node.Size;
-
-            return
-                minX >= _spatialRegionMin.x &&
-                minY >= _spatialRegionMin.y &&
-                maxX <= _spatialRegionMax.x &&
-                maxY <= _spatialRegionMax.y;
-        }
-
-        private bool NodeIntersectsRegion(QuadNodeInfo node)
-        {
-            float minX = node.X;
-            float minY = node.Y;
-            float maxX = node.X + node.Size;
-            float maxY = node.Y + node.Size;
-
-            return !(
-                maxX <= _spatialRegionMin.x ||
-                minX >= _spatialRegionMax.x ||
-                maxY <= _spatialRegionMin.y ||
-                minY >= _spatialRegionMax.y
-            );
+            throw new System.NotImplementedException();
         }
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TilemapModifiers\QuadTreeSubdivisionModifierRandom.cs ---
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Composition\MarchingSquaresCompositionStrategy.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileTopology.cs ---
+
+// TODO ROADMAP:
+// [x] Simple NESW topology struct
+// [x] Mask encoding
+// [x] Rotation helper
+// [ ] Add compatibility check
+// [ ] Add neighbor matching helpers
+
+
+namespace Truchet
+{
+    [System.Serializable]
+    public struct TileTopology
+    {
+        public bool north;
+        public bool east;
+        public bool south;
+        public bool west;
+
+        /// <summary>
+        /// Bitmask encoding:
+        /// bit 0 → north
+        /// bit 1 → east
+        /// bit 2 → south
+        /// bit 3 → west
+        /// </summary>
+        public int Mask =>
+            (north ? 1 : 0) |
+            (east  ? 2 : 0) |
+            (south ? 4 : 0) |
+            (west  ? 8 : 0);
+
+        /// <summary>
+        /// Rotates NESW mask clockwise by 90° steps.
+        /// rotation: can be negative or greater than 3.
+        /// </summary>
+        public static int RotateMask(int mask, int rotation)
+        {
+            // Normalize rotation to 0..3
+            rotation = ((rotation % 4) + 4) % 4;
+
+            for (int i = 0; i < rotation; i++)
+            {
+                int north = (mask & 1) != 0 ? 1 : 0;
+                int east  = (mask & 2) != 0 ? 1 : 0;
+                int south = (mask & 4) != 0 ? 1 : 0;
+                int west  = (mask & 8) != 0 ? 1 : 0;
+
+                mask =
+                    (west  << 0) | // new north
+                    (north << 1) | // new east
+                    (east  << 2) | // new south
+                    (south << 3);  // new west
+            }
+
+            return mask;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileTopology.cs ---
 
 
 --------------------------------------------------

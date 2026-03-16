@@ -7,6 +7,7 @@
 // [ ] Add multi-material support
 
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Truchet
 {
@@ -15,5 +16,7 @@ namespace Truchet
         void RenderInstances(
             List<TileInstanceGPU> instances,
             int resolution);
+
+        public void SetTileTextureArray(Texture2DArray array);
     }
 }

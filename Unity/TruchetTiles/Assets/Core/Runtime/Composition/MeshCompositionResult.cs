@@ -3,30 +3,6 @@
     namespace Truchet
     {
         // TODO ROADMAP:
-        // [x] Base composition result abstraction
-        // [ ] Add instance result type
-        // [ ] Add mesh result type
-        // [ ] Add GPU buffer result type
-        // [ ] Add field (scalar grid) result type
-        // [ ] Add streaming / chunked result support
-
-        /// <summary>
-        /// Marker interface for composition outputs.
-        /// 
-        /// Composition layer produces geometry/data in a renderer-agnostic format.
-        /// Render backends consume these results.
-        /// 
-        /// This abstraction allows:
-        /// - Multiple composition strategies
-        /// - Multiple rendering backends
-        /// - Strict separation of responsibilities
-        /// </summary>
-        public interface ICompositionResult
-        {
-        }
-
-
-        // TODO ROADMAP:
         // [x] Mesh-based composition result container
         // [ ] Add submesh support
         // [ ] Add material indexing
