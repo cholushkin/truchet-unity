@@ -1,41 +1,5 @@
 // --- Source Blob ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
-
-using UnityEngine;
-
-namespace Truchet.TileCooking
-{
-    [CreateAssetMenu(
-        fileName = "TileCookDefinition",
-        menuName = "Truchet/Tile Cooking/Tile Cook Definition",
-        order = 0)]
-    public class TileCookDefinition : ScriptableObject
-    {
-        [Header("Resolution")]
-        public int Width = 256;
-        public int Height = 256;
-
-        [Header("Winged Mode")]
-        public bool IsWinged;
-
-        public bool IsInversed;
-        
-
-        [Header("Output Folder (relative to Assets/)")]
-        public string OutputFolder = "Core/Textures/Tiles";
-
-        [Header("Topology")]
-        public TileTopology Topology;
-
-        [Header("Command Script")]
-        [TextArea(10, 40)]
-        public string CommandScript;
-    }
-}
-
-// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
-
 // --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCommandParser.cs ---
 
 // TODO ROADMAP:
@@ -50,7 +14,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
     internal static class TileCommandParser
     {
@@ -161,77 +125,178 @@ namespace Truchet.TileCooking
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCommandParser.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
-
-// TODO ROADMAP:
-// [x] Polymorphic render instruction model
-// [x] Rectangle, Ellipse, Pie, Bezier instructions
-// [ ] Add LineInstruction
-// [ ] Add PolygonInstruction
-// [ ] Add GradientInstruction
-// [ ] Add Anti-aliased rasterization support
+// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
 
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
-    internal abstract class TileRenderInstruction
+    [CreateAssetMenu(
+        fileName = "TileCookDefinition",
+        menuName = "Truchet/Tile Cooking/Tile Cook Definition",
+        order = 0)]
+    public class TileCookDefinition : ScriptableObject
     {
-    }
+        [Header("Resolution")]
+        public int Width = 256;
+        public int Height = 256;
 
-    internal sealed class RectangleInstruction : TileRenderInstruction
-    {
-        public Vector2 Center;
-        public Vector2 Size;
-    }
+        [Header("Winged Mode")]
+        public bool IsWinged;
 
-    internal sealed class EllipseInstruction : TileRenderInstruction
-    {
-        public Vector2 Center;
-        public Vector2 Size;
-    }
+        public bool IsInversed;
+        
 
-    internal sealed class PieInstruction : TileRenderInstruction
-    {
-        public Vector2 Center;
-        public Vector2 Size;
-        public float StartAngle;
-        public float SweepAngle;
-    }
+        [Header("Output Folder (relative to Assets/)")]
+        public string OutputFolder = "Core/Textures/Tiles";
 
-    internal sealed class BezierInstruction : TileRenderInstruction
-    {
-        public Vector2 P0;
-        public Vector2 P1;
-        public Vector2 P2;
-        public Vector2 P3;
-        public float Thickness;
+        [Header("Topology")]
+        public TileTopology Topology;
+
+        [Header("Command Script")]
+        [TextArea(10, 40)]
+        public string CommandScript;
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
+// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookDefinition.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridCell.cs ---
+
+// TODO ROADMAP:
+// [x] Basic grid cell data container
+// [x] Rotation support (0-3)
+// [ ] Add metadata storage
+// [ ] Add flags (blocked, reserved, etc.)
+// [ ] Add multiscale support hook
+
+namespace Truchet
+{
+    /// <summary>
+    /// Logical grid cell.
+    /// Pure topology container.
+    /// </summary>
+    public struct GridCell
+    {
+        public int X;
+        public int Y;
+
+        public int TileIndex;
+        public int Rotation; // 0,1,2,3 (90° steps)
+
+        public GridCell(int x, int y)
+        {
+            X = x;
+            Y = y;
+            TileIndex = -1;
+            Rotation = 0;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridCell.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\LayoutModifiers\Direction.cs ---
+
+// TODO ROADMAP:
+// [x] Direction enum
+// [ ] Use the one from gamelib
+// [ ] Add diagonal support
+// [ ] Add vector conversion helpers
+
+namespace Truchet
+{
+    public enum Direction
+    {
+        Right,
+        Up,
+        Left,
+        Down
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\LayoutModifiers\Direction.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTopology.cs ---
+
+// TODO ROADMAP:
+// [x] Simple NESW topology struct
+// [ ] Add helper methods
+// [ ] Add rotation helpers
+// [ ] Add compatibility check
+
+using UnityEngine;
+
+namespace Truchet
+{
+    [System.Serializable]
+    public struct TileTopology
+    {
+        public bool north;
+        public bool east;
+        public bool south;
+        public bool west;
+
+        public int Mask =>
+            (north ? 1 : 0) |
+            (east  ? 2 : 0) |
+            (south ? 4 : 0) |
+            (west  ? 8 : 0);
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTopology.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\Tile.cs ---
+
+// TODO ROADMAP:
+// [x] Runtime tile asset (texture + connectivity)
+// [x] PNG-based workflow (texture imported from disk)
+// [ ] Add normal map support
+// [ ] Add SDF texture support
+// [ ] Add metadata tags
+// [ ] Add addressables support
+
+
+using UnityEngine;
+
+namespace Truchet
+{
+    [CreateAssetMenu(
+        fileName = "Tile",
+        menuName = "Truchet/Tiles/Tile",
+        order = 0)]
+    public class Tile : ScriptableObject
+    {
+        [Tooltip("NESW bitmask")]
+        public int connectivityMask;
+
+        public Texture2D texture;
+        
+        // todo: make an editor where user can define matrix of cells to approximate tile 
+        public string MarchingSquareApproximation;
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\Tile.cs ---
 
 // --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTextureCooker.cs ---
 
 // TODO ROADMAP:
 // [x] Parse command script
-// [x] Polymorphic rasterization dispatch
-// [x] Rectangle rasterization
-// [ ] Ellipse rasterization
-// [ ] Pie rasterization
-// [ ] Bezier rasterization
-// [ ] Anti-aliased rasterization
-// [ ] GPU RenderTexture backend
-// [ ] Atlas cooking
-// [ ] Batch cooking
+// [x] CPU rasterization backend
+// [x] Save PNG instead of Texture2D asset
+// [ ] Add compression options
+// [ ] Add atlas cooking
+// [ ] Add GPU RenderTexture backend
+// [ ] Add batch cooking
 
 using UnityEngine;
 using UnityEditor;
 using System.IO;
 using System.Collections.Generic;
-using Truchet.Tiles;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
     public static class TileTextureCooker
     {
@@ -243,19 +308,30 @@ namespace Truchet.TileCooking
 
             string basePath = "Assets/" + definition.OutputFolder;
 
-            string texturePath = Path.Combine(basePath, definition.name + "_Tex.asset");
+            string pngPath = Path.Combine(basePath, definition.name + ".png");
             string tilePath = Path.Combine(basePath, definition.name + "_Tile.asset");
 
-            AssetDatabase.CreateAsset(texture, texturePath);
+            SavePNG(texture, pngPath);
+
+            AssetDatabase.Refresh();
+
+            Texture2D importedTexture =
+                AssetDatabase.LoadAssetAtPath<Texture2D>(pngPath);
 
             Tile tile = ScriptableObject.CreateInstance<Tile>();
             tile.connectivityMask = definition.Topology.Mask;
-            tile.texture = texture;
+            tile.texture = importedTexture;
 
             AssetDatabase.CreateAsset(tile, tilePath);
             AssetDatabase.SaveAssets();
 
             return tile;
+        }
+
+        private static void SavePNG(Texture2D texture, string path)
+        {
+            byte[] png = texture.EncodeToPNG();
+            File.WriteAllBytes(path, png);
         }
 
         private static void EnsureFolder(string relativeFolder)
@@ -278,6 +354,9 @@ namespace Truchet.TileCooking
                 }
             }
         }
+
+        // Rasterize() unchanged below
+
 
         private static Texture2D Rasterize(TileCookDefinition def)
         {
@@ -503,6 +582,51 @@ namespace Truchet.TileCooking
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTextureCooker.cs ---
 
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\LayoutModifiers\GridLayoutModifierRandom.cs ---
+
+// TODO ROADMAP:
+// [x] Component-based random layout modifier
+// [ ] Add deterministic seed support
+// [ ] Add weighted tile selection
+// [ ] Add adjacency-aware randomization
+// [ ] Add tile filtering
+
+using UnityEngine;
+
+namespace Truchet
+{
+    /// <summary>
+    /// Randomly assigns tiles and rotations to the layout.
+    /// </summary>
+    public class GridLayoutModifierRandom : GridLayoutModifierBehaviour
+    {
+        [Header("Tile Source")]
+        [SerializeField] private TileSet _tileSet;
+
+        public override void Apply(RegularGridLayout layout)
+        {
+            if (layout == null || _tileSet == null || _tileSet.tiles == null)
+            {
+                Debug.LogError("GridLayoutModifierRandom: Invalid input.");
+                return;
+            }
+
+            for (int y = 0; y < layout.Height; y++)
+            {
+                for (int x = 0; x < layout.Width; x++)
+                {
+                    int tileIndex = Random.Range(0, _tileSet.tiles.Length);
+                    int rotation = Random.Range(0, 4);
+
+                    layout.SetTileIndex(x, y, tileIndex, rotation);
+                }
+            }
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\LayoutModifiers\GridLayoutModifierRandom.cs ---
+
 // --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileSet.cs ---
 
 // TODO ROADMAP:
@@ -514,7 +638,7 @@ namespace Truchet.TileCooking
 
 using UnityEngine;
 
-namespace Truchet.Tiles
+namespace Truchet
 {
     [CreateAssetMenu(
         fileName = "TileSet",
@@ -528,6 +652,236 @@ namespace Truchet.Tiles
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\TileSet.cs ---
 
+// --- Start File: readme.md ---
+
+# Truchet Tiles -- Multiscale & Winged Rendering System
+
+## Overview
+
+This module provides a scalable tile generation and rendering system
+designed for:
+
+-   Efficient GPU-driven rendering
+-   True hierarchical QuadTree (not flat list)
+-   Efficient subdivision logic
+-   Clean data-oriented structures
+-   Designed for large tile counts
+-   Deterministic rebuild behavior
+-   Editor-time tile baking pipeline
+-   Support for both multiscale winged tiles and regular grids
+
+The system is divided into two primary layers:
+
+1.  Editor-time Tile Cooking
+2.  Runtime Placement & Rendering
+
+------------------------------------------------------------------------
+
+# Winged Tile Definition
+
+The direct method uses the "winged" tiles illustrated in Figure 3 of the
+original paper.
+
+A winged tile consists of:
+
+-   The content of the tile inside a square boundary
+-   "Wings" that extend outside the square to complete the motif
+-   The square boundary is conceptual; wings intentionally exceed it
+-   The gray background often shown in diagrams is not part of the tile
+-   Wing shapes are arbitrary but stylistically consistent within a
+    motif set
+
+This allows seamless multiscale composition while maintaining visual
+continuity across boundaries.
+
+------------------------------------------------------------------------
+
+# Editor-Time Tile Cooking
+
+## Purpose
+
+Prepare tile assets once, use many times at runtime.
+
+## Pipeline
+
+TileCookDefinition (ScriptableObject) → Command Script (DSL) →
+TileCommandParser → TileRenderInstructions → TileTextureCooker → Tile
+(Texture + Connectivity)
+
+## Command DSL Example
+
+ELP 0.5 1 0.2 0.2\
+ELP 1 0.5 0.2 0.2\
+BZR 0.5 1 0.5 0.75 0.75 0.5 1 0.5 0.15
+
+Supported primitives:
+
+-   RCT -- Rectangle
+-   ELP -- Ellipse
+-   PIE -- Pie slice
+-   BZR -- Cubic Bezier with thickness
+
+This enables:
+
+-   Winged tiles
+-   Classic Truchet tiles
+-   Arbitrary motifs
+-   Future SDF export
+-   GPU baking in future
+
+------------------------------------------------------------------------
+
+# Runtime Architecture
+
+Runtime does NOT generate textures.
+
+Runtime consumes baked tiles and focuses on:
+
+-   Placement
+-   Subdivision
+-   Transform generation
+-   GPU rendering
+
+------------------------------------------------------------------------
+
+# Core Runtime Data Model
+
+``` csharp
+struct TileInstance
+{
+    public float4x4 transform;
+    public int motifIndex;
+    public int level;
+}
+```
+
+Design rationale:
+
+-   transform → world transform
+-   motifIndex → index into TileSet
+-   level → subdivision depth / parity / LOD
+
+No per-instance texture references. GPU-friendly. Burst-compatible.
+
+------------------------------------------------------------------------
+
+# Placement Modes
+
+## 1) Regular Grid Mode
+
+-   Fixed cell size
+-   No subdivision
+-   Uniform transform scale
+-   Ideal for deterministic tiling
+-   Complexity: O(n)
+
+## 2) Hierarchical QuadTree Mode
+
+True tree, not flat list.
+
+``` csharp
+struct QuadNode
+{
+    public float2 position;
+    public float size;
+    public int level;
+    public bool isLeaf;
+    public int childIndex;
+}
+```
+
+Characteristics:
+
+-   Depth-based subdivision
+-   Probabilistic subdivision
+-   View-dependent subdivision (future)
+-   LOD-aware rendering
+
+Worst-case: O(4\^D)\
+Practical: O(n) where n = number of leaf tiles
+
+------------------------------------------------------------------------
+
+# Winged Mode Support
+
+Winged tiles are:
+
+-   Baked at editor time
+-   Texture-based at runtime
+-   Compatible with both Regular Grid and QuadTree modes
+
+Multiscale effect:
+
+scale = 1 / (2\^level)
+
+Tile cooker supports winged motifs via Bezier-based command DSL. Runtime
+supports winged mode by respecting over-boundary motif geometry and
+level scaling.
+
+------------------------------------------------------------------------
+
+# GPU Rendering Strategy
+
+Primary target:
+
+Graphics.DrawMeshInstancedIndirect
+
+Per-instance data:
+
+-   Transform matrix
+-   Motif index
+-   Level
+
+Motif storage options:
+
+A)  Single quad mesh + procedural shader (preferred)\
+B)  Texture array atlas
+
+------------------------------------------------------------------------
+
+# Optimization Roadmap
+
+## Rendering
+
+-   Switch fully to indirect instancing
+-   StructuredBuffer for TileInstance
+-   Frustum culling per QuadNode
+-   Shader-based motif logic
+
+## Memory
+
+-   Compress transform to float3x2
+-   Half precision where possible
+-   NativeList usage
+
+## Subdivision
+
+-   Burst job-based QuadTree
+-   View-dependent subdivision
+-   Deterministic per-node seeds
+
+## Shader
+
+-   Branchless parity logic
+-   SDF-based winged motifs
+-   Animated motif support
+
+------------------------------------------------------------------------
+
+# Design Philosophy
+
+1.  Store transforms, not geometry.
+2.  Bake visuals, not logic.
+3.  Separate placement from rendering.
+4.  Push work to GPU.
+5.  Keep CPU memory linear.
+6.  Avoid per-frame allocations.
+7.  Design for 100k+ tiles.
+
+
+
+// --- End File: readme.md ---
+
 // --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookerEditor.cs ---
 
 // TODO ROADMAP:
@@ -540,7 +894,7 @@ namespace Truchet.Tiles
 using UnityEditor;
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
     [CustomEditor(typeof(TileCookDefinition))]
     public class TileCookerEditor : Editor
@@ -563,63 +917,428 @@ namespace Truchet.TileCooking
 
 // --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileCookerEditor.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\Tile.cs ---
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TextureGridRenderer.cs ---
 
 // TODO ROADMAP:
-// [x] Runtime tile asset (texture + connectivity)
-// [ ] Add normal map support
-// [ ] Add SDF texture support
-// [ ] Add GPU index support
-// [ ] Add metadata tags
+// [x] CPU texture compositing renderer
+// [x] Rotation support (0, 90, 180, 270)
+// [x] TileSet sourced from layout
+// [ ] Add dirty-region updates
+// [ ] Add chunked rendering
+// [ ] Add GPU backend swap
+// [ ] Add multiscale support
+// [ ] Add tile caching (avoid repeated GetPixels allocations)
 
 using UnityEngine;
 
-namespace Truchet.Tiles
+namespace Truchet
 {
-    [CreateAssetMenu(
-        fileName = "Tile",
-        menuName = "Truchet/Tiles/Tile",
-        order = 0)]
-    public class Tile : ScriptableObject
+    /// <summary>
+    /// Renders entire grid into a single Texture2D.
+    /// Deterministic CPU compositing backend.
+    /// </summary>
+    public class TextureGridRenderer
     {
-        [Tooltip("NESW bitmask")]
-        public int connectivityMask;
+        private readonly int _tileResolution;
 
-        public Texture2D texture;
+        public TextureGridRenderer(int tileResolution)
+        {
+            _tileResolution = tileResolution;
+        }
+
+        /// <summary>
+        /// Renders the provided layout into a single texture.
+        /// </summary>
+        public Texture2D Render(RegularGridLayout layout)
+        {
+            if (layout == null)
+            {
+                Debug.LogError("TextureGridRenderer: Layout is null.");
+                return null;
+            }
+
+            if (layout.TileSet == null || layout.TileSet.tiles == null)
+            {
+                Debug.LogError("TextureGridRenderer: TileSet is not assigned in layout.");
+                return null;
+            }
+
+            int width = layout.Width * _tileResolution;
+            int height = layout.Height * _tileResolution;
+
+            Texture2D output = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            Color[] pixels = new Color[width * height];
+
+            FillBackground(pixels);
+
+            for (int y = 0; y < layout.Height; y++)
+            {
+                for (int x = 0; x < layout.Width; x++)
+                {
+                    GridCell cell = layout.GetCell(x, y);
+
+                    if (!IsValidTileIndex(layout, cell.TileIndex))
+                        continue;
+
+                    BlitTile(layout, pixels, width, x, y, cell.TileIndex, cell.Rotation);
+                }
+            }
+
+            output.SetPixels(pixels);
+            output.Apply();
+
+            return output;
+        }
+
+        #region Internal
+
+        private void FillBackground(Color[] pixels)
+        {
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = Color.white;
+            }
+        }
+
+        private bool IsValidTileIndex(RegularGridLayout layout, int index)
+        {
+            return index >= 0 && index < layout.TileSet.tiles.Length;
+        }
+
+        private void BlitTile(
+            RegularGridLayout layout,
+            Color[] target,
+            int targetWidth,
+            int gridX,
+            int gridY,
+            int tileIndex,
+            int rotation)
+        {
+            Tile tile = layout.TileSet.tiles[tileIndex];
+
+            if (tile == null || tile.texture == null)
+            {
+                Debug.LogError($"No tile in tileset with index {tileIndex}");
+                return;
+            }
+
+            Texture2D texture = tile.texture;
+
+            if (texture.width != _tileResolution || texture.height != _tileResolution)
+            {
+                Debug.LogError("Tile resolution mismatch.");
+                return;
+            }
+
+            Color[] source = texture.GetPixels();
+
+            int startX = gridX * _tileResolution;
+            int startY = gridY * _tileResolution;
+
+            for (int y = 0; y < _tileResolution; y++)
+            {
+                for (int x = 0; x < _tileResolution; x++)
+                {
+                    int srcIndex = GetRotatedIndex(x, y, rotation);
+
+                    int tx = startX + x;
+                    int ty = startY + y;
+
+                    int dstIndex = ty * targetWidth + tx;
+
+                    target[dstIndex] = source[srcIndex];
+                }
+            }
+        }
+
+        private int GetRotatedIndex(int x, int y, int rotation)
+        {
+            switch (rotation % 4)
+            {
+                case 0:
+                    return y * _tileResolution + x;
+
+                case 1:
+                    return (_tileResolution - 1 - x) * _tileResolution + y;
+
+                case 2:
+                    return (_tileResolution - 1 - y) * _tileResolution +
+                           (_tileResolution - 1 - x);
+
+                case 3:
+                    return x * _tileResolution +
+                           (_tileResolution - 1 - y);
+
+                default:
+                    return y * _tileResolution + x;
+            }
+        }
+
+        #endregion
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Tiles\Tile.cs ---
 
-// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTopology.cs ---
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\TextureGridRenderer.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridLayout.cs ---
 
 // TODO ROADMAP:
-// [x] Simple NESW topology struct
-// [ ] Add helper methods
-// [ ] Add rotation helpers
-// [ ] Add compatibility check
+// [x] Basic rectangular grid implementation
+// [x] TileSet stored in layout
+// [ ] Add neighbor query API
+// [ ] Add iteration helpers
+// [ ] Add deterministic fill utilities
+// [ ] Add resize support
+
+namespace Truchet
+{
+    /// <summary>
+    /// Standard rectangular grid.
+    /// Deterministic and memory-contiguous.
+    /// </summary>
+    public class RegularGridLayout
+    {
+        private readonly GridCell[,] _cells;
+
+        public int Width { get; }
+        public int Height { get; }
+
+        public TileSet TileSet { get; }
+
+        public RegularGridLayout(int width, int height, TileSet tileSet)
+        {
+            Width = width;
+            Height = height;
+            TileSet = tileSet;
+
+            _cells = new GridCell[width, height];
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    _cells[x, y] = new GridCell(x, y);
+                }
+            }
+        }
+
+        public bool IsValid(int x, int y)
+        {
+            return x >= 0 && y >= 0 && x < Width && y < Height;
+        }
+
+        public GridCell GetCell(int x, int y)
+        {
+            if (!IsValid(x, y))
+                throw new System.ArgumentOutOfRangeException();
+
+            return _cells[x, y];
+        }
+
+        public void SetTileIndex(int x, int y, int tileIndex, int rotation)
+        {
+            if (!IsValid(x, y))
+                return;
+
+            GridCell cell = _cells[x, y];
+            cell.TileIndex = tileIndex;
+            cell.Rotation = rotation;
+            _cells[x, y] = cell;
+        }
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\RegularGridLayout.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IGridLayout.cs ---
+
+// TODO ROADMAP:
+// [x] Define grid abstraction interface
+// [ ] Add coordinate helpers
+// [ ] Add neighbor query helpers
+// [ ] Add bounds validation helpers
+// [ ] Add serialization support if needed
 
 using UnityEngine;
 
-namespace Truchet.TileCooking
+namespace Truchet
 {
-    [System.Serializable]
-    public struct TileTopology
+    /// <summary>
+    /// Pure topology abstraction.
+    /// Defines spatial indexing without rendering concerns.
+    /// </summary>
+    public interface IGridLayout
     {
-        public bool north;
-        public bool east;
-        public bool south;
-        public bool west;
+        int Width { get; }
+        int Height { get; }
 
-        public int Mask =>
-            (north ? 1 : 0) |
-            (east  ? 2 : 0) |
-            (south ? 4 : 0) |
-            (west  ? 8 : 0);
+        bool IsValid(int x, int y);
+
+        GridCell GetCell(int x, int y);
     }
 }
 
-// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileTopology.cs ---
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\IGridLayout.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
+
+// TODO ROADMAP:
+// [x] Polymorphic render instruction model
+// [x] Rectangle, Ellipse, Pie, Bezier instructions
+// [ ] Add LineInstruction
+// [ ] Add PolygonInstruction
+// [ ] Add GradientInstruction
+// [ ] Add Anti-aliased rasterization support
+
+using UnityEngine;
+
+namespace Truchet
+{
+    internal abstract class TileRenderInstruction
+    {
+    }
+
+    internal sealed class RectangleInstruction : TileRenderInstruction
+    {
+        public Vector2 Center;
+        public Vector2 Size;
+    }
+
+    internal sealed class EllipseInstruction : TileRenderInstruction
+    {
+        public Vector2 Center;
+        public Vector2 Size;
+    }
+
+    internal sealed class PieInstruction : TileRenderInstruction
+    {
+        public Vector2 Center;
+        public Vector2 Size;
+        public float StartAngle;
+        public float SweepAngle;
+    }
+
+    internal sealed class BezierInstruction : TileRenderInstruction
+    {
+        public Vector2 P0;
+        public Vector2 P1;
+        public Vector2 P2;
+        public Vector2 P3;
+        public float Thickness;
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Editor\TileCooking\TileRenderInstructions.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridLayoutController.cs ---
+
+// TODO ROADMAP:
+// [x] Modifier-driven layout controller
+// [x] TileSet owned by layout
+// [ ] Add runtime regeneration button
+// [ ] Add deterministic seed support
+// [ ] Add multiscale layout swap
+// [ ] Add editor preview support
+
+using UnityEngine;
+
+namespace Truchet
+{
+    /// <summary>
+    /// Creates layout, applies stacked modifiers, then renders.
+    /// </summary>
+    public class GridLayoutController : MonoBehaviour
+    {
+        [Header("Grid Settings")]
+        [SerializeField] private int _width = 8;
+        [SerializeField] private int _height = 8;
+        [SerializeField] private int _tileResolution = 256;
+
+        [Header("Tile Source")]
+        [SerializeField] private TileSet _tileSet;
+
+        [Header("Rendering")]
+        [SerializeField] private Renderer _targetRenderer;
+
+        private void Start()
+        {
+            if (_tileSet == null)
+            {
+                Debug.LogError("GridLayoutController: TileSet missing.");
+                return;
+            }
+
+            if (_targetRenderer == null)
+            {
+                Debug.LogError("GridLayoutController: TargetRenderer missing.");
+                return;
+            }
+
+            // Create layout with TileSet
+            RegularGridLayout layout =
+                new RegularGridLayout(_width, _height, _tileSet);
+
+            // Apply stacked modifiers
+            ApplyModifiers(layout);
+
+            // Render
+            TextureGridRenderer renderer =
+                new TextureGridRenderer(_tileResolution);
+
+            Texture2D result = renderer.Render(layout);
+
+            _targetRenderer.material.mainTexture = result;
+        }
+
+        private void ApplyModifiers(RegularGridLayout layout)
+        {
+            GridLayoutModifierBehaviour[] modifiers =
+                GetComponents<GridLayoutModifierBehaviour>();
+
+            foreach (var modifier in modifiers)
+            {
+                if (modifier.enabled)
+                    modifier.Apply(layout);
+            }
+        }
+    }
+}
+
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\GridLayoutController.cs ---
+
+// --- Start File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\LayoutModifiers\GridLayoutModifierBehaviour.cs ---
+
+// TODO ROADMAP:
+// [x] Base class for stackable layout modifiers
+// [ ] Add execution order override support
+// [ ] Add enable/disable runtime toggle
+// [ ] Add priority system
+// [ ] Add multiscale compatibility
+
+using UnityEngine;
+
+namespace Truchet
+{
+    /// <summary>
+    /// Base class for all layout modifiers.
+    /// Multiple modifiers can be stacked on one GameObject
+    /// and applied sequentially.
+    /// </summary>
+    public abstract class GridLayoutModifierBehaviour : MonoBehaviour
+    {
+        /// <summary>
+        /// Applies modification to the provided layout.
+        /// Must NOT recreate layout.
+        /// Must only mutate required cells.
+        /// </summary>
+        public abstract void Apply(RegularGridLayout layout);
+    }
+}
+
+// --- End File: Unity\TruchetTiles\Assets\Core\Runtime\Grid\LayoutModifiers\GridLayoutModifierBehaviour.cs ---
 
 
 --------------------------------------------------
