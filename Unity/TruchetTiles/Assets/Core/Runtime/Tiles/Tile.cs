@@ -1,11 +1,12 @@
 // TODO ROADMAP:
 // [x] Runtime tile asset (texture + connectivity)
-// [x] PNG-based workflow (texture imported from disk)
+// [x] PNG-based workflow
+// [x] Rotation-aware connectivity helper
+// [x] Winged flag
 // [ ] Add normal map support
 // [ ] Add SDF texture support
 // [ ] Add metadata tags
 // [ ] Add addressables support
-
 
 using UnityEngine;
 
@@ -21,8 +22,15 @@ namespace Truchet
         public int connectivityMask;
 
         public Texture2D texture;
-        
-        // todo: make an editor where user can define matrix of cells to approximate tile 
+
+        [Header("Winged Rendering")]
+        public bool IsWinged;
+
         public string MarchingSquareApproximation;
+
+        public int GetRotatedMask(int rotation)
+        {
+            return TileTopology.RotateMask(connectivityMask, rotation);
+        }
     }
 }

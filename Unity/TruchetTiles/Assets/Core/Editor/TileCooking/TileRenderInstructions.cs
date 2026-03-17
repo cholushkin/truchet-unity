@@ -1,6 +1,7 @@
 // TODO ROADMAP:
 // [x] Polymorphic render instruction model
 // [x] Rectangle, Ellipse, Pie, Bezier instructions
+// [x] Color-aware render instructions (Black / White)
 // [ ] Add LineInstruction
 // [ ] Add PolygonInstruction
 // [ ] Add GradientInstruction
@@ -10,8 +11,16 @@ using UnityEngine;
 
 namespace Truchet
 {
+    internal enum DrawColor
+    {
+        Black,
+        White
+    }
+
     internal abstract class TileRenderInstruction
     {
+        // Default = Black (backward compatible)
+        public DrawColor Color = DrawColor.Black;
     }
 
     internal sealed class RectangleInstruction : TileRenderInstruction

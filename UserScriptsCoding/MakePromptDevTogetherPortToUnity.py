@@ -4,7 +4,7 @@ from Core.PromptContextCollector.PromptContextCollector import PromptContextColl
 
 PromptContextCollector(
     directories=["Unity/TruchetTiles/Assets/Core"],  # Wildcards and folders
-    includes=["*.cs", "*.md"],
+    includes=["*.cs", "*.md", "*.shader"],
     files=["readme.md"],
     ignores=[],
     template_path="UserScriptsCoding/TextTemplates/DevelopTogetherTemplate.txt",  # Relative to project root

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 343ad3f71cbab5a4f8c8052899046373, type: 3}
+  m_Name: NE-SW(winged)
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::Truchet.TileCooking.TileCookDefinition
+  Width: 256
+  Height: 256
+  IsWinged: 1
+  IsInversed: 0
+  OutputFolder: Core/Textures/Tiles
+  Topology:
+    north: 1
+    east: 1
+    south: 1
+    west: 1
+  CommandScript: "//\r\n// Winged Diagonal (NE\u2013SW)\r\n//\r\n\r\n// Corner nodes
+    (visual anchors)\r\nELP 0 0 0.25 0.25\r\nELP 1 0 0.25 0.25\r\nELP 0 1 0.25 0.25\r\nELP
+    1 1 0.25 0.25\r\n\r\n//\r\n// First curved band (bottom-left \u2192 top-right)\r\n//\r\nBZR
+    0 0.5   0.25 0.75   0.75 0.25   1 0.5   0.25\r\n\r\n//\r\n// Second curved band
+    (top-left \u2192 bottom-right)\r\n//\r\nBZR 0.5 1   0.75 0.75   0.25 0.25   0.5
+    0   0.25"

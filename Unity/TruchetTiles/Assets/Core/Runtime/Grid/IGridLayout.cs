@@ -1,5 +1,6 @@
 // TODO ROADMAP:
 // [x] Define grid abstraction interface
+// [x] Add SetTile support
 // [ ] Add coordinate helpers
 // [ ] Add neighbor query helpers
 // [ ] Add bounds validation helpers
@@ -21,5 +22,7 @@ namespace Truchet
         bool IsValid(int x, int y);
 
         GridCell GetCell(int x, int y);
+
+        void SetTile(int x, int y, int tileSetId, int tileIndex, int rotation);
     }
 }
