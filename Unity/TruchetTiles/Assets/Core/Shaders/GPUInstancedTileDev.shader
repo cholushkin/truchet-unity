@@ -1,19 +1,25 @@
-Shader "Truchet/GPUInstancedTile_Stab"
+Shader "Truchet/GPUInstancedTileDev"
 {
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { 
+            "RenderType"="Opaque"
+            "RenderPipeline"="UniversalPipeline"
+        }
 
         Pass
         {
+            Name "Forward"
+            Tags { "LightMode"="UniversalForward" }
+
             HLSLPROGRAM
-            #pragma target 4.5
+
             #pragma vertex vert
             #pragma fragment frag
+            #pragma target 4.5
 
-            #include "UnityCG.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            // Must match C# struct layout exactly (80 bytes)
             struct TileInstanceGPU
             {
                 float4x4 transform;
@@ -46,15 +52,14 @@ Shader "Truchet/GPUInstancedTile_Stab"
                     instance.transform,
                     float4(IN.positionOS, 1.0));
 
-                OUT.positionCS = mul(UNITY_MATRIX_VP, worldPos);
+                OUT.positionCS = TransformWorldToHClip(worldPos.xyz);
 
                 return OUT;
             }
 
-            float4 frag(Varyings IN) : SV_Target
+            half4 frag(Varyings IN) : SV_Target
             {
-                // Solid bright green
-                return float4(0, 1, 0, 1);
+                return half4(0, 1, 0, 1); // bright green
             }
 
             ENDHLSL

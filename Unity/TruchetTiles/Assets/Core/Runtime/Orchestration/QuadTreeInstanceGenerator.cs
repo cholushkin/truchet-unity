@@ -1,7 +1,7 @@
 // TODO ROADMAP:
 // [x] Instance generation only (GPU ready)
-// [ ] Add SDF-aware motif index mapping
-// [ ] Add frustum culling support
+// [x] Multi-tileset support (global motif index)
+// [ ] Add frustum culling
 // [ ] Add burst-compatible path
 
 using System.Collections.Generic;
@@ -21,7 +21,8 @@ namespace Truchet
         public List<TileInstanceGPU> GenerateInstances(
             IHierarchicalTileLayout layout,
             TileSet[] tileSets,
-            int resolution)
+            int resolution,
+            Dictionary<int, int> tileSetOffsets)
         {
             List<TileInstanceGPU> instances = new List<TileInstanceGPU>();
 
@@ -46,10 +47,12 @@ namespace Truchet
                 Matrix4x4 matrix =
                     TileMatrixBuilder.Build(center, renderSize, node.Rotation);
 
+                int offset = tileSetOffsets[node.TileSetId];
+
                 instances.Add(new TileInstanceGPU
                 {
                     transform = matrix,
-                    motifIndex = (uint)node.TileIndex,
+                    motifIndex = (uint)(offset + node.TileIndex),
                     level = (uint)node.Level
                 });
             }
@@ -69,9 +72,7 @@ namespace Truchet
                 node.TileIndex >= tileSet.tiles.Length)
                 return false;
 
-            Tile tile = tileSet.tiles[node.TileIndex];
-
-            return tile != null;
+            return tileSet.tiles[node.TileIndex] != null;
         }
     }
 }

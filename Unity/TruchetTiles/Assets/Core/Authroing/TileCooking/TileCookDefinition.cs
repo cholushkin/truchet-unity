@@ -18,9 +18,6 @@ namespace Truchet
         [Header("Output Folder (relative to Assets/)")]
         public string OutputFolder = "Core/Textures/Tiles";
 
-        [Header("Topology")]
-        public TileTopology Topology;
-
         [Header("Command Script")]
         [TextArea(10, 40)]
         public string CommandScript;

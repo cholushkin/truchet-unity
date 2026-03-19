@@ -18,19 +18,11 @@ namespace Truchet
         order = 0)]
     public class Tile : ScriptableObject
     {
-        [Tooltip("NESW bitmask")]
-        public int connectivityMask;
-
         public Texture2D texture;
 
         [Header("Winged Rendering")]
         public bool IsWinged;
 
         public string MarchingSquareApproximation;
-
-        public int GetRotatedMask(int rotation)
-        {
-            return TileTopology.RotateMask(connectivityMask, rotation);
-        }
     }
 }

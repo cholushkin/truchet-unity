@@ -1,18 +1,13 @@
 // TODO ROADMAP:
-// [x] Introduce Marching Squares composition placeholder
-// [ ] Refactor ITileCompositionStrategy to return ICompositionResult
-// [ ] Replace List<TileInstanceGPU> return type with MeshCompositionResult
-// [ ] Add scalar field sampling abstraction (SDF / discrete mask)
-// [ ] Implement grid-based marching squares case evaluation
-// [ ] Generate mesh vertices / indices
-// [ ] Add chunked mesh generation support
-// [ ] Add QuadTree-aware adaptive sampling
+// [x] Composition interface migration (ICompositionResult)
+// [ ] Implement discrete field sampling (tile-based mask)
+// [ ] Implement marching squares case evaluation
+// [ ] Generate mesh (vertices + indices)
+// [ ] Add chunked mesh generation
+// [ ] Add QuadTree adaptive sampling
 // [ ] Add LOD support
-// [ ] Add GPU compute-based field sampling (future)
-// [ ] Add SDF blending support
-// [ ] Add deterministic seed-based field evaluation
 
-using System.Collections.Generic;
+using UnityEngine;
 
 namespace Truchet
 {
@@ -22,54 +17,42 @@ namespace Truchet
     ///
     /// ARCHITECTURAL ROLE:
     /// ---------------------
-    /// This class belongs to the Composition layer.
-    /// It interprets layout data and produces mesh geometry.
+    /// Composition layer only.
+    /// Produces mesh data (no rendering).
     ///
-    /// It MUST NOT:
-    /// - Render anything
-    /// - Call Graphics APIs
-    /// - Access materials or shaders
-    /// - Modify layout structure
+    /// IMPORTANT:
+    /// - Does NOT use textures
+    /// - Does NOT use SDF
+    /// - Will operate on discrete tile mask / field
     ///
-    /// It WILL:
-    /// - Sample scalar field from layout (SDF or mask-based)
-    /// - Evaluate marching squares cases per cell
-    /// - Generate vertex/index buffers
-    /// - Produce a MeshCompositionResult
-    ///
-    /// FUTURE DESIGN:
-    /// --------------
+    /// FUTURE PIPELINE:
     /// Layout
     ///   ↓
-    /// Scalar Field (SDF or discrete mask)
+    /// Discrete Field (0/1 or scalar)
     ///   ↓
-    /// Marching Squares case evaluation
+    /// Marching Squares
     ///   ↓
     /// MeshCompositionResult
-    ///   ↓
-    /// MeshRenderBackend
-    ///
-    /// NOTE:
-    /// Current return type (List<TileInstanceGPU>) is temporary.
-    /// This will be replaced with ICompositionResult once
-    /// composition abstraction is unified.
     /// </summary>
-    class MarchingSquaresCompositionStrategy : ITileCompositionStrategy
+    public class MarchingSquaresCompositionStrategy : ITileCompositionStrategy
     {
-        public List<TileInstanceGPU> ComposeInstances(
+        public ICompositionResult Compose(
             object layout,
             TileSet[] tileSets,
             int resolution)
         {
-            // Placeholder implementation.
-            // Marching Squares does not produce instances.
-            // It produces mesh geometry.
-            //
-            // This method will be removed once
-            // ITileCompositionStrategy is refactored
-            // to return ICompositionResult.
+            // 🔴 Not implemented yet by design
+            // This is a placeholder to keep architecture consistent
 
-            throw new System.NotImplementedException();
+            Debug.LogWarning(
+                "MarchingSquaresCompositionStrategy is not implemented yet.");
+
+            return new MeshCompositionResult(
+                mesh: null,
+                resolution: resolution,
+                bounds: new Bounds(Vector3.zero, Vector3.zero),
+                fromSdf: false
+            );
         }
     }
 }

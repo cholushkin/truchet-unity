@@ -1,9 +1,9 @@
 // TODO ROADMAP:
 // [x] Motif instanced composition
-// [ ] Add SDF-aware motif mapping
-// [ ] Add frustum culling support
-// [ ] Add burst-compatible path
+// [x] Multi-tileset motif indexing
+// [ ] Add frustum culling
 // [ ] Add chunked generation
+// [ ] Add job system support
 
 using System.Collections.Generic;
 
@@ -11,31 +11,44 @@ namespace Truchet
 {
     public class MotifInstanceCompositionStrategy : ITileCompositionStrategy
     {
-        public List<TileInstanceGPU> ComposeInstances(
+        public ICompositionResult Compose(
             object layout,
             TileSet[] tileSets,
             int resolution)
         {
+            var resource = TileSetGPUResourceManager.Build(tileSets);
+
+            if (resource == null)
+                return new InstanceCompositionResult(new List<TileInstanceGPU>(), resolution);
+
+            var offsets = resource.TileSetOffsets;
+
+            List<TileInstanceGPU> instances;
+
             if (layout is IGridLayout grid)
             {
                 var generator =
                     new RegularGridInstanceGenerator(resolution / grid.Width);
 
-                return generator.GenerateInstances(grid, tileSets);
+                instances = generator.GenerateInstances(grid, tileSets, offsets);
             }
-
-            if (layout is IHierarchicalTileLayout hierarchical)
+            else if (layout is IHierarchicalTileLayout hierarchical)
             {
                 var generator =
                     new QuadTreeInstanceGenerator(resolution);
 
-                return generator.GenerateInstances(
+                instances = generator.GenerateInstances(
                     hierarchical,
                     tileSets,
-                    resolution);
+                    resolution,
+                    offsets);
+            }
+            else
+            {
+                instances = new List<TileInstanceGPU>();
             }
 
-            return new List<TileInstanceGPU>();
+            return new InstanceCompositionResult(instances, resolution);
         }
     }
 }

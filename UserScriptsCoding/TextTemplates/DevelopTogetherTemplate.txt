@@ -1,7 +1,7 @@
 You are continuing development of an existing module.
 
 Context:
-- I provide a blob of files representing the current implementation state.
+- I provide a blob of files representing the current implementation state (module codebase).
 - The module already has working functionality.
 - There is an existing architecture and design philosophy (see included markdown).
 - Your task is to analyze and continue structured development.
@@ -55,6 +55,7 @@ Your responsibilities:
    - Respect documented architecture rules.
    - Do not contradict design constraints.
    - If you suggest deviation, justify clearly.
+   - If you generate any markdown for me, always generate downloadable file instead of printing directly to the chat
 
 Important:
 This is an ongoing development session.

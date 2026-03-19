@@ -1,7 +1,6 @@
 // TODO ROADMAP:
 // [x] Instance generation only (GPU ready)
-// [ ] Remove legacy CPU rendering path
-// [ ] Add SDF-aware motif index support
+// [x] Multi-tileset support (global motif index)
 // [ ] Add multiscale support
 // [ ] Add chunked instance generation
 
@@ -21,7 +20,8 @@ namespace Truchet
 
         public List<TileInstanceGPU> GenerateInstances(
             IGridLayout layout,
-            TileSet[] tileSets)
+            TileSet[] tileSets,
+            Dictionary<int, int> tileSetOffsets)
         {
             List<TileInstanceGPU> instances = new List<TileInstanceGPU>();
 
@@ -43,10 +43,12 @@ namespace Truchet
                     Matrix4x4 matrix =
                         TileMatrixBuilder.Build(center, tileSize, cell.Rotation);
 
+                    int offset = tileSetOffsets[cell.TileSetId];
+
                     instances.Add(new TileInstanceGPU
                     {
                         transform = matrix,
-                        motifIndex = (uint)cell.TileIndex,
+                        motifIndex = (uint)(offset + cell.TileIndex),
                         level = 0
                     });
                 }
@@ -67,9 +69,7 @@ namespace Truchet
                 cell.TileIndex >= tileSet.tiles.Length)
                 return false;
 
-            Tile tile = tileSet.tiles[cell.TileIndex];
-
-            return tile != null;
+            return tileSet.tiles[cell.TileIndex] != null;
         }
     }
 }

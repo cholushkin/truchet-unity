@@ -50,7 +50,6 @@ namespace Truchet
                 AssetDatabase.LoadAssetAtPath<Texture2D>(pngPath);
 
             Tile tile = ScriptableObject.CreateInstance<Tile>();
-            tile.connectivityMask = definition.Topology.Mask;
             tile.texture = importedTexture;
             tile.IsWinged = definition.IsWinged;
 

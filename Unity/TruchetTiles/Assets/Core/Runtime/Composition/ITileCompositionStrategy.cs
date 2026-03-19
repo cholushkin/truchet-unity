@@ -1,9 +1,9 @@
 // TODO ROADMAP:
 // [x] Composition abstraction layer
-// [ ] Add MarchingSquaresCompositionStrategy
-// [ ] Add SDFFieldCompositionStrategy
-// [ ] Add mesh-based composition output
-// [ ] Add compute-shader driven composition
+// [x] Return ICompositionResult instead of raw instances
+// [ ] Add strongly typed layout interfaces
+// [ ] Add async / job support
+// [ ] Add chunked composition
 
 using System.Collections.Generic;
 
@@ -11,8 +11,8 @@ namespace Truchet
 {
     public interface ITileCompositionStrategy
     {
-        List<TileInstanceGPU> ComposeInstances(
-            object layout, // We temporarily use object layout to allow both IGridLayout and IHierarchicalTileLayout.
+        ICompositionResult Compose(
+            object layout,
             TileSet[] tileSets,
             int resolution);
     }

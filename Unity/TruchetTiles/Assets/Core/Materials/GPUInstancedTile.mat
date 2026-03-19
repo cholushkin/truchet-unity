@@ -20,8 +20,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: GridMaterial
-  m_Shader: {fileID: 4800000, guid: 6dad839e76fd81944a7001c387af7d90, type: 3}
+  m_Name: GPUInstancedTile
+  m_Shader: {fileID: 4800000, guid: 12110bfbd088dc4478f5f6e3fbfa32ee, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []

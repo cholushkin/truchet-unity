@@ -2,27 +2,37 @@ Shader "Truchet/GPUInstancedTile"
 {
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { 
+            "RenderType"="Opaque"
+            "RenderPipeline"="UniversalPipeline"
+        }
 
         Pass
         {
+            Name "Forward"
+            Tags { "LightMode"="UniversalForward" }
+
             HLSLPROGRAM
-            #pragma target 4.5
+
             #pragma vertex vert
             #pragma fragment frag
+            #pragma target 4.5
 
-            #include "UnityCG.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             struct TileInstanceGPU
             {
                 float4x4 transform;
                 uint motifIndex;
                 uint level;
+                uint pad0;
+                uint pad1;
             };
 
             StructuredBuffer<TileInstanceGPU> _Instances;
 
-            UNITY_DECLARE_TEX2DARRAY(_TileArray);
+            TEXTURE2D_ARRAY(_TileArray);
+            SAMPLER(sampler_TileArray);
 
             struct Attributes
             {
@@ -35,34 +45,34 @@ Shader "Truchet/GPUInstancedTile"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv         : TEXCOORD0;
-                uint motifIndex   : TEXCOORD1;
+                float motifIndex  : TEXCOORD1;
             };
 
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
 
-                TileInstanceGPU instance =
-                    _Instances[IN.instanceID];
+                TileInstanceGPU instance = _Instances[IN.instanceID];
 
-                float4 worldPos =
-                    mul(instance.transform,
-                        float4(IN.positionOS, 1.0));
+                float4 worldPos = mul(
+                    instance.transform,
+                    float4(IN.positionOS, 1.0));
 
-                OUT.positionCS =
-                    mul(UNITY_MATRIX_VP, worldPos);
+                OUT.positionCS = TransformWorldToHClip(worldPos.xyz);
 
                 OUT.uv = IN.uv;
-                OUT.motifIndex = instance.motifIndex;
+                OUT.motifIndex = (float)instance.motifIndex;
 
                 return OUT;
             }
 
-            float4 frag(Varyings IN) : SV_Target
+            half4 frag(Varyings IN) : SV_Target
             {
-                return UNITY_SAMPLE_TEX2DARRAY(
+                return SAMPLE_TEXTURE2D_ARRAY(
                     _TileArray,
-                    float3(IN.uv, IN.motifIndex));
+                    sampler_TileArray,
+                    IN.uv,
+                    IN.motifIndex);
             }
 
             ENDHLSL

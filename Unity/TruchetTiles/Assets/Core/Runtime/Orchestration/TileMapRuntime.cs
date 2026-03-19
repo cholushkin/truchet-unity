@@ -1,3 +1,11 @@
+// TODO ROADMAP:
+// [x] Composition result integration
+// [x] Multi-tileset GPU resource support
+// [x] Clean instance result usage
+// [ ] Add regeneration trigger system
+// [ ] Add runtime tile updates
+// [ ] Add chunk streaming support
+
 using UnityEngine;
 using System.Collections.Generic;
 using NaughtyAttributes;
@@ -18,7 +26,7 @@ namespace Truchet
         [SerializeField] private int _height = 8;
 
         [Header("Rendering")]
-        [SerializeField] private int _tileSizePixels = 1;   // 🔥 Keep small for now
+        [SerializeField] private int _tileSizePixels = 1;
         [SerializeField] private Material _gpuMaterial;
 
         private ITileCompositionStrategy _compositionStrategy;
@@ -26,9 +34,7 @@ namespace Truchet
 
         private Texture2DArray _tileArray;
 
-        // 🔥 Cache instances
-        private List<TileInstanceGPU> _instances;
-        private int _resolution;
+        private InstanceCompositionResult _instanceResult;
 
         private void Start()
         {
@@ -38,21 +44,22 @@ namespace Truchet
                 return;
             }
 
-            _compositionStrategy =
-                new MotifInstanceCompositionStrategy();
-
-            _renderBackend =
-                new GPUInstancedRenderBackend(_gpuMaterial);
+            _compositionStrategy = new MotifInstanceCompositionStrategy();
+            _renderBackend = new GPUInstancedRenderBackend(_gpuMaterial);
 
             Generate();
         }
 
         private void Update()
         {
-            if (_instances == null || _instances.Count == 0)
+            if (_instanceResult == null ||
+                _instanceResult.Instances == null ||
+                _instanceResult.Instances.Count == 0)
                 return;
 
-            _renderBackend.RenderInstances(_instances, _resolution);
+            _renderBackend.RenderInstances(
+                _instanceResult.Instances,
+                _instanceResult.Resolution);
         }
 
         private void Generate()
@@ -79,15 +86,31 @@ namespace Truchet
             foreach (var mod in modifiers)
                 mod.Apply(map);
 
-            _resolution = _width * _tileSizePixels;
+            // 🔥 TEMP DEBUG FILL (CRITICAL)
+            if (tileSets.Length > 0 && tileSets[0].tiles.Length > 0)
+            {
+                for (int y = 0; y < _height; y++)
+                for (int x = 0; x < _width; x++)
+                {
+                    map.SetTile(x, y, 0, 0, 0);
+                }
+            }
 
-            _instances =
-                _compositionStrategy.ComposeInstances(
+            int resolution = _width * _tileSizePixels;
+
+            var resource = TileSetGPUResourceManager.Build(tileSets);
+
+            if (resource != null)
+            {
+                _tileArray = resource.TextureArray;
+                _renderBackend.SetTileTextureArray(_tileArray);
+            }
+
+            _instanceResult =
+                (InstanceCompositionResult)_compositionStrategy.Compose(
                     map,
                     tileSets,
-                    _resolution);
-
-            Debug.Log("Generated instances: " + _instances.Count);
+                    resolution);
         }
 
         private void GenerateQuadTree()
@@ -100,15 +123,21 @@ namespace Truchet
             foreach (var mod in modifiers)
                 mod.Apply(map);
 
-            _resolution = _width * _tileSizePixels;
+            int resolution = _width * _tileSizePixels;
 
-            _instances =
-                _compositionStrategy.ComposeInstances(
+            var resource = TileSetGPUResourceManager.Build(tileSets);
+
+            if (resource != null)
+            {
+                _tileArray = resource.TextureArray;
+                _renderBackend.SetTileTextureArray(_tileArray);
+            }
+
+            _instanceResult =
+                (InstanceCompositionResult)_compositionStrategy.Compose(
                     map,
                     tileSets,
-                    _resolution);
-
-            Debug.Log("Generated instances: " + _instances.Count);
+                    resolution);
         }
 
         private (TileSet[], TileMapModifier[]) CollectModifiers()
@@ -125,13 +154,6 @@ namespace Truchet
 
                 mod.TileSetId = tileSets.Count;
                 tileSets.Add(mod.TileSet);
-            }
-
-            // Build Texture2DArray for first tileset only (temporary)
-            if (tileSets.Count > 0)
-            {
-                _tileArray = TileSetTextureArrayBuilder.Build(tileSets[0]);
-                _renderBackend.SetTileTextureArray(_tileArray);
             }
 
             return (tileSets.ToArray(), modifiers);
