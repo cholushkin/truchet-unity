@@ -52,13 +52,10 @@ namespace Truchet
             if (instances == null || instances.Count == 0)
                 return;
             
-            Debug.Log("RenderInstances called with " + instances.Count);
-
             EnsureCapacity(instances.Count);
 
             _instanceBuffer.SetData(instances);
 
-// bind directly on material
             _material.SetBuffer(InstancesID, _instanceBuffer);
 
             UpdateArgsBuffer(instances.Count);

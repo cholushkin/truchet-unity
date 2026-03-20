@@ -1,10 +1,10 @@
 // TODO ROADMAP:
-// [x] Composition result integration
-// [x] Multi-tileset GPU resource support
-// [x] Clean instance result usage
+// [x] Composition result integration (logical instances)
+// [x] RenderDataBuilder integration (GPU conversion)
 // [ ] Add regeneration trigger system
 // [ ] Add runtime tile updates
 // [ ] Add chunk streaming support
+// [ ] Decouple resource building from pipeline
 
 using UnityEngine;
 using System.Collections.Generic;
@@ -26,7 +26,7 @@ namespace Truchet
         [SerializeField] private int _height = 8;
 
         [Header("Rendering")]
-        [SerializeField] private int _tileSizePixels = 1;
+        [SerializeField] private int _tileSizePixels = 64;
         [SerializeField] private Material _gpuMaterial;
 
         private ICompositionStrategy _compositionStrategy;
@@ -35,6 +35,7 @@ namespace Truchet
         private Texture2DArray _tileArray;
 
         private InstanceCompositionResult _instanceResult;
+        private List<TileInstanceGPU> _gpuInstances;
 
         private void Start()
         {
@@ -52,17 +53,16 @@ namespace Truchet
 
         private void Update()
         {
-            if (_instanceResult == null ||
-                _instanceResult.Instances == null ||
-                _instanceResult.Instances.Count == 0)
+            if (_gpuInstances == null || _gpuInstances.Count == 0)
                 return;
 
             _renderBackend.RenderInstances(
-                _instanceResult.Instances,
+                _gpuInstances,
                 _instanceResult.Resolution);
         }
 
-        private void Generate()
+        [Button]
+        public void Generate()
         {
             switch (_layoutMode)
             {
@@ -76,47 +76,55 @@ namespace Truchet
             }
         }
 
+        // --------------------------------------------------
+        // REGULAR GRID
+        // --------------------------------------------------
+
         private void GenerateRegularGrid()
         {
-            RegularGrid map =
-                new RegularGrid(_width, _height);
+            RegularGrid map = new RegularGrid(_width, _height);
 
             var (tileSets, modifiers) = CollectModifiers();
 
             foreach (var mod in modifiers)
                 mod.Apply(map);
 
-            // 🔥 TEMP DEBUG FILL (CRITICAL)
-            if (tileSets.Length > 0 && tileSets[0].tiles.Length > 0)
-            {
-                for (int y = 0; y < _height; y++)
-                for (int x = 0; x < _width; x++)
-                {
-                    map.SetTile(x, y, 0, 0, 0);
-                }
-            }
-
             int resolution = _width * _tileSizePixels;
 
             var resource = TileArrayBuilder.Build(tileSets);
 
-            if (resource != null)
+            if (resource == null)
             {
-                _tileArray = resource.TextureArray;
-                _renderBackend.SetTileTextureArray(_tileArray);
+                Debug.LogError("Failed to build TileArray.");
+                return;
             }
+
+            _tileArray = resource.TextureArray;
+            _renderBackend.SetTileTextureArray(_tileArray);
 
             _instanceResult =
                 (InstanceCompositionResult)_compositionStrategy.Compose(
                     map,
                     tileSets,
                     resolution);
+
+            var builder = new InstanceRenderDataBuilder();
+
+            _gpuInstances = builder.Build(
+                _instanceResult.Instances,
+                resource.TileSetOffsets);
         }
+
+        // --------------------------------------------------
+        // QUADTREE
+        // --------------------------------------------------
 
         private void GenerateQuadTree()
         {
-            QuadTree map =
-                new QuadTree(1f);
+            QuadTree map = new QuadTree(
+                size: 1f,
+                logicalWidth: _width,
+                logicalHeight: _height);
 
             var (tileSets, modifiers) = CollectModifiers();
 
@@ -127,18 +135,31 @@ namespace Truchet
 
             var resource = TileArrayBuilder.Build(tileSets);
 
-            if (resource != null)
+            if (resource == null)
             {
-                _tileArray = resource.TextureArray;
-                _renderBackend.SetTileTextureArray(_tileArray);
+                Debug.LogError("Failed to build TileArray.");
+                return;
             }
+
+            _tileArray = resource.TextureArray;
+            _renderBackend.SetTileTextureArray(_tileArray);
 
             _instanceResult =
                 (InstanceCompositionResult)_compositionStrategy.Compose(
                     map,
                     tileSets,
                     resolution);
+
+            var builder = new InstanceRenderDataBuilder();
+
+            _gpuInstances = builder.Build(
+                _instanceResult.Instances,
+                resource.TileSetOffsets);
         }
+
+        // --------------------------------------------------
+        // HELPERS
+        // --------------------------------------------------
 
         private (TileSet[], LayoutModifier[]) CollectModifiers()
         {

@@ -1,14 +1,20 @@
 // TODO ROADMAP:
-// [x] Motif instanced composition
-// [x] Multi-tileset motif indexing
-// [ ] Add frustum culling
-// [ ] Add chunked generation
+// [x] Motif instanced composition (logical instances)
+// [x] Normalized world space (1 tile = 1 unit)
+// [ ] Move builders into dedicated logical builders
+// [ ] Add bounds calculation
+// [ ] Add chunked composition
 // [ ] Add job system support
 
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Truchet
 {
+    /// <summary>
+    /// Converts layout data into logical tile instances.
+    /// Produces renderer-agnostic data used by the rendering layer.
+    /// </summary>
     public class InstanceComposition : ICompositionStrategy
     {
         public ICompositionResult Compose(
@@ -16,42 +22,117 @@ namespace Truchet
             TileSet[] tileSets,
             int resolution)
         {
-            var resource = TileArrayBuilder.Build(tileSets);
+            List<TileInstance> instances = new List<TileInstance>();
 
-            if (resource == null)
-                return new InstanceCompositionResult(new List<TileInstanceGPU>(), resolution);
-
-            var offsets = resource.TileSetOffsets;
-
-            List<TileInstanceGPU> instances;
+            // --------------------------------------------------
+            // GRID LAYOUT
+            // --------------------------------------------------
 
             if (layout is IGridLayout grid)
             {
-                var generator =
-                    new GridInstanceBuilder(resolution / grid.Width);
-                
-                // 👉 Composition is doing rendering preparation work. This is slightly wrong layer-wise, BUT acceptable for now.
-                // Should be: Composition → abstract result (logical). Rendering → builds GPU instances
+                float tileSize = 1f;
 
-                instances = generator.BuildInstances(grid, tileSets, offsets);
+                for (int y = 0; y < grid.Height; y++)
+                {
+                    for (int x = 0; x < grid.Width; x++)
+                    {
+                        GridCell cell = grid.GetCell(x, y);
+
+                        if (!IsValid(cell, tileSets))
+                            continue;
+
+                        instances.Add(new TileInstance
+                        {
+                            Position = new Vector2(
+                                x + 0.5f,
+                                y + 0.5f),
+
+                            Size = tileSize,
+
+                            TileSetId = cell.TileSetId,
+                            TileIndex = cell.TileIndex,
+                            Rotation = cell.Rotation,
+
+                            Level = 0
+                        });
+                    }
+                }
             }
+
+            // --------------------------------------------------
+            // QUADTREE LAYOUT
+            // --------------------------------------------------
+
             else if (layout is IHierarchicalLayout hierarchical)
             {
-                var generator =
-                    new QuadTreeInstanceBuilder(resolution);
+                foreach (int index in hierarchical.GetLeafIndices())
+                {
+                    var node = hierarchical.GetNode(index);
 
-                instances = generator.BuildInstances(
-                    hierarchical,
-                    tileSets,
-                    resolution,
-                    offsets);
+                    if (!node.IsActive)
+                        continue;
+
+                    if (!IsValid(node, tileSets))
+                        continue;
+
+                    float size = node.Size * resolution;
+
+                    instances.Add(new TileInstance
+                    {
+                        Position = new Vector2(
+                            (node.X + node.Size * 0.5f) * resolution,
+                            (node.Y + node.Size * 0.5f) * resolution),
+
+                        Size = size,
+
+                        TileSetId = node.TileSetId,
+                        TileIndex = node.TileIndex,
+                        Rotation = node.Rotation,
+
+                        Level = node.Level
+                    });
+                }
             }
-            else
-            {
-                instances = new List<TileInstanceGPU>();
-            }
+
+            Debug.Log($"[Compose] Total instances: {instances.Count}");
 
             return new InstanceCompositionResult(instances, resolution);
+        }
+
+        // --------------------------------------------------
+        // VALIDATION
+        // --------------------------------------------------
+
+        private bool IsValid(GridCell cell, TileSet[] tileSets)
+        {
+            if (cell.TileSetId < 0 || cell.TileSetId >= tileSets.Length)
+                return false;
+
+            var set = tileSets[cell.TileSetId];
+
+            if (set == null || set.tiles == null)
+                return false;
+
+            if (cell.TileIndex < 0 || cell.TileIndex >= set.tiles.Length)
+                return false;
+
+            return set.tiles[cell.TileIndex] != null;
+        }
+
+        private bool IsValid(QuadNode node, TileSet[] tileSets)
+        {
+            if (node.TileSetId < 0 || node.TileSetId >= tileSets.Length)
+                return false;
+
+            var set = tileSets[node.TileSetId];
+
+            if (set == null || set.tiles == null)
+                return false;
+
+            if (node.TileIndex < 0 || node.TileIndex >= set.tiles.Length)
+                return false;
+
+            return set.tiles[node.TileIndex] != null;
         }
     }
 }

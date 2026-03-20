@@ -43,6 +43,7 @@ Your responsibilities:
    - Recommend architectural patterns where applicable.
    - Suggest refactors only if they improve extensibility.
    - Avoid premature optimization.
+   - Comments should describe intent and behavior. Don't write history or report of what you did 
 
 7. Communication Style
    - Be concise.

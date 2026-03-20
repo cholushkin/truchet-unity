@@ -1,11 +1,13 @@
-![logo](Documentation/repository-open-graph-cover.jpg)
-
 # Truchet Core
 
 ![Unity](https://img.shields.io/badge/Engine-Unity-black?logo=unity)
 ![Rendering](https://img.shields.io/badge/Rendering-GPU%20Instanced-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Modular-green)
 ![Status](https://img.shields.io/badge/Status-Active-success)
+
+------------------------------------------------------------------------
+
+![logo](Documentation/repository-open-graph-cover.jpg)
 
 Procedural GPU-driven tile system for Unity focused on scalability,
 performance, and clean architecture.
