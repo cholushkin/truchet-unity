@@ -1,90 +1,68 @@
-# Truchet Core — GPU-Driven Procedural Tile System
+# Truchet Core --- GPU-Driven Procedural Tile System
 
 ## Overview
 
-Truchet Core is a modular, GPU-driven tile composition system designed for:
+Truchet Core is a modular system for procedural tile-based rendering
+designed for scalability, flexibility, and performance.
 
-- Large-scale procedural tiling (100k+ tiles)
-- Hierarchical QuadTree layouts
-- Multi-tileset rendering
-- GPU instanced rendering
-- Future mesh-based composition (Marching Squares)
-- Deterministic structural behavior
+Core pipeline:
 
-The system enforces strict separation between:
+Layout → Composition → Rendering
 
-Topology → Composition → Rendering
+Each layer has a single responsibility and can be replaced
+independently.
 
-- Topology defines where tiles exist  
-- Composition defines how layout is interpreted  
-- Rendering defines how results are drawn  
+------------------------------------------------------------------------
 
----
+## Architecture
 
-# Architectural Layers
+### Layout Layer
 
-## 1. Layout Layer (Topology)
+Defines spatial structure and tile placement.
 
-Responsible only for spatial structure and tile indexing.
+Implementations: - RegularGrid - QuadTree
 
-Supported layouts:
-- Regular Grid
-- Adaptive QuadTree
+Responsibilities: - Spatial indexing - Tile storage - Structural
+transformations
 
-Features:
-- Stable node indices
-- Deterministic subdivision and collapse
-- Mutable structure
-- No rendering logic
+------------------------------------------------------------------------
 
----
+### Composition Layer
 
-## 2. Composition Layer
+Transforms layout data into renderer-ready data.
 
-Transforms layout into renderer-agnostic results.
+Interface: ICompositionStrategy
 
-Interface:
-ITileCompositionStrategy
+Current implementation: - InstanceComposition
 
-Output:
-ICompositionResult
+------------------------------------------------------------------------
 
-### Instance Composition (Primary)
+### Rendering Layer
 
-Layout → InstanceCompositionResult → GPU Renderer
+Responsible for drawing data produced by composition.
 
-### Mesh Composition (Planned)
+Interface: IRenderBackend
 
-Layout → Discrete Field → Marching Squares → Mesh
+Current implementation: - GPUInstancedRenderBackend
 
----
+------------------------------------------------------------------------
 
-## 3. Rendering Layer
+## GPU Rendering
 
-Consumes composition results and draws them.
+-   Uses GPU instancing for large-scale rendering
+-   Texture2DArray for efficient texture binding
+-   Indirect draw calls for performance
 
-Interface:
-IRenderBackend
+------------------------------------------------------------------------
 
-### GPU Instanced Backend
+## Extensibility
 
-- DrawMeshInstancedIndirect
-- StructuredBuffer
-- Texture2DArray sampling
+The system is designed to support: - Additional layout types -
+Alternative composition strategies - Multiple rendering backends
 
----
+------------------------------------------------------------------------
 
-# Texture Array System
+## Summary
 
-Tiles are uploaded as Texture2DArray via TileSetGPUResourceManager.
-
-Supports:
-- Multi-tileset merging
-- Global motif indexing
-- Hash-based caching
-
----
-
-# Summary
-
-Truchet Core is a scalable system for procedural tile generation with GPU-driven rendering and clean architecture.
+Truchet Core provides a clean, scalable architecture for procedural tile
+rendering with strong separation of concerns.

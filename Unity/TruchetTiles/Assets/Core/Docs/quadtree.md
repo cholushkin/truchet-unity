@@ -1,129 +1,55 @@
-# QuadTreeTileMap — Architecture & Design Specification (UPDATED)
+# QuadTree Layout
 
 ## Overview
 
-QuadTreeTileMap is a hierarchical spatial container supporting:
+QuadTree is a hierarchical layout that supports adaptive spatial
+subdivision.
 
-- Uniform grid mode (fixed depth)
-- Adaptive hierarchical mode (mixed depth)
+------------------------------------------------------------------------
 
-It is designed for:
+## Features
 
-- Deterministic procedural generation
-- Runtime structural mutation (subdivide / collapse)
-- Modifier-driven content workflows
-- GPU-friendly instance generation
+-   Recursive subdivision
+-   Variable resolution
+-   Efficient hierarchical representation
 
-IMPORTANT:
+------------------------------------------------------------------------
 
-QuadTreeTileMap is a **pure topology container**.
+## Modes
 
-It:
-- DOES NOT render
-- DOES NOT generate textures
-- DOES NOT know about GPU
-- DOES NOT contain connectivity logic
+### Uniform Mode
 
----
+All leaves share the same depth and can be accessed as a grid.
 
-# Core Principles
+### Adaptive Mode
 
-1. Stable Node Identity  
-2. Deterministic Behavior  
-3. Canonical Child Ordering  
-4. No Hidden Side Effects  
-5. Layout is Passive  
-6. Modifiers Own Content  
+Leaves can exist at different depths.
 
----
+------------------------------------------------------------------------
 
-# Interfaces
+## Responsibilities
 
-QuadTreeTileMap implements:
+-   Store spatial hierarchy
+-   Manage subdivision and collapse
+-   Provide tile data per node
 
-- IGridLayout (only in uniform mode)
-- IHierarchicalTileLayout (always)
+------------------------------------------------------------------------
 
----
+## Interfaces
 
-# Modes
+-   IGridLayout (uniform mode only)
+-   IHierarchicalLayout
 
-## Mode A — Uniform Grid Mode
+------------------------------------------------------------------------
 
-Valid when all leaves share same depth.
+## Design Principles
 
-Provides:
-- Width / Height
-- Grid access (x, y)
+-   Deterministic behavior
+-   Stable structure
+-   No rendering responsibilities
 
-## Mode B — Adaptive Mode
+------------------------------------------------------------------------
 
-- Mixed depth leaves
-- Grid interface disabled
-- Use hierarchical traversal only
+## Summary
 
----
-
-# Node Structure
-
-Each node contains:
-
-- Position (X, Y)
-- Size
-- Level
-- TileSetId
-- TileIndex
-- Rotation
-
-No topology / connectivity data is stored.
-
----
-
-# Subdivision
-
-Subdivide(node):
-- Creates 4 children
-- Children inherit tile data
-- Parent becomes non-leaf
-
----
-
-# Collapse
-
-Collapse(node):
-- Parent takes child[0] tile
-- Children become inactive
-- Data is preserved
-
----
-
-# Determinism
-
-- No internal randomness
-- Modifiers must be deterministic
-- No implicit rebuilds
-
----
-
-# Rendering Relationship
-
-QuadTreeTileMap does NOT render anything.
-
-Instead:
-
-Layout → Composition → Rendering
-
-Example:
-
-QuadTree → InstanceComposition → GPUInstancedRenderBackend
-
----
-
-# Summary
-
-QuadTreeTileMap is:
-
-- Pure topology
-- Deterministic
-- Mutable
-- Rendering-agnostic
+QuadTree provides a flexible layout for adaptive tile-based worlds.

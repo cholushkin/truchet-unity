@@ -1,114 +1,51 @@
-# Rendering Architecture — Truchet Core
+# Rendering Architecture
 
 ## Overview
 
-Rendering in Truchet Core is fully decoupled from layout and composition.
+The Rendering layer is responsible for drawing composition results.
 
-Pipeline:
+It does not modify layout or perform composition.
 
-Layout → Composition → Rendering
+------------------------------------------------------------------------
 
-Rendering layer consumes composition results and is responsible ONLY for drawing.
-
----
-
-# Core Interface
+## Interface
 
 IRenderBackend
 
-Responsibilities:
+------------------------------------------------------------------------
 
-- Receive composition results
-- Upload data to GPU (if needed)
-- Issue draw calls
+## Responsibilities
 
-It MUST NOT:
+-   Receive composition results
+-   Upload data to GPU
+-   Execute draw calls
 
-- Access layout directly
-- Modify tile data
-- Perform composition logic
+------------------------------------------------------------------------
 
----
+## Current Backend
 
-# Current Backend
+GPUInstancedRenderBackend
 
-## GPUInstancedRenderBackend
+Pipeline: Instance data → GPU buffers → DrawMeshInstancedIndirect
 
-Pipeline:
+------------------------------------------------------------------------
 
-InstanceCompositionResult → GPU buffers → DrawMeshInstancedIndirect
+## Features
 
-Features:
+-   High-performance instanced rendering
+-   Persistent GPU buffers
+-   Texture2DArray sampling
 
-- High performance (100k+ instances)
-- Persistent ComputeBuffer
-- Indirect rendering
-- Texture2DArray sampling
+------------------------------------------------------------------------
 
----
+## Design Principles
 
-# Texture Binding
+-   Stateless rendering per frame
+-   No knowledge of layout
+-   No composition logic
 
-Tile textures are provided via:
+------------------------------------------------------------------------
 
-TileSetGPUResourceManager
+## Summary
 
-This builds:
-
-- Texture2DArray
-- TileSet → index offsets
-
-Shader uses:
-
-motifIndex → selects texture slice
-
----
-
-# Future Backends
-
-## MeshRenderBackend
-
-Input:
-MeshCompositionResult
-
-Output:
-- MeshRenderer or Graphics.DrawMesh
-
-Use cases:
-- Marching Squares
-- Continuous surfaces
-
----
-
-## Texture / Quad Backend
-
-Input:
-TextureCompositionResult (future)
-
-Output:
-- Material on quad
-
-Use cases:
-- Preview
-- UI
-- Baking
-
----
-
-# Design Rules
-
-- Rendering is stateless per frame
-- Buffers are reused
-- No CPU-heavy logic
-- Composition decides WHAT, renderer decides HOW
-
----
-
-# Summary
-
-Rendering layer is:
-
-- Replaceable
-- Scalable
-- GPU-focused
-- Fully decoupled
+Rendering is fully decoupled and focused purely on drawing.
