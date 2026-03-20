@@ -1,107 +1,49 @@
-# Composition Layer — Truchet Core
+# Composition Layer
 
 ## Overview
 
-The Composition layer transforms layout data into renderer-ready data.
+The Composition layer converts layout data into renderer-ready results.
 
-It is the bridge between:
+It acts as a bridge between layout and rendering.
 
-Layout → Rendering
+------------------------------------------------------------------------
 
----
+## Interface
 
-# Core Interface
+ICompositionStrategy
 
-ITileCompositionStrategy
+Compose(layout, tileSets, resolution)
 
-Method:
+------------------------------------------------------------------------
 
-Compose(layout, tileSets, resolution) → ICompositionResult
+## Responsibilities
 
----
+-   Read layout data
+-   Generate renderable data structures
+-   Remain independent of rendering APIs
 
-# Key Principle
+------------------------------------------------------------------------
 
-Composition produces data.
+## Output
 
-It does NOT:
-- Render
-- Access GPU APIs
-- Modify layout
-
----
-
-# Composition Results
-
-All outputs implement:
+All composition results implement:
 
 ICompositionResult
 
-Current types:
+Current type: - InstanceCompositionResult
 
-## 1. InstanceCompositionResult
+------------------------------------------------------------------------
 
-Contains:
-- List<TileInstanceGPU>
-- Resolution
+## Current Implementation
 
-Used by:
-GPUInstancedRenderBackend
+InstanceComposition
 
----
+Uses: - GridInstanceBuilder - QuadTreeInstanceBuilder
 
-## 2. MeshCompositionResult (planned)
+------------------------------------------------------------------------
 
-Contains:
-- Mesh
-- Bounds
-- Resolution
+## Design Goals
 
-Used by:
-Future mesh rendering
-
----
-
-# Current Strategy
-
-## MotifInstanceCompositionStrategy
-
-Pipeline:
-
-Layout → Instances
-
-Supports:
-- RegularGrid
-- QuadTree
-- Multi-tileset offsets
-
----
-
-# Future Strategy
-
-## MarchingSquaresCompositionStrategy
-
-Pipeline:
-
-Layout → Discrete Field → Mesh
-
-Notes:
-- No SDF
-- Uses tile-derived field
-- Produces mesh
-
----
-
-# Design Goals
-
-- Renderer-agnostic
-- Replaceable strategies
-- Supports multiple outputs
-- Clean data separation
-
----
-
-# Summary
-
-Composition layer defines WHAT gets rendered,
-not HOW it is rendered.
+-   Renderer-agnostic
+-   Replaceable strategies
+-   Clean separation from layout and rendering
