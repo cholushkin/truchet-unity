@@ -1,4 +1,4 @@
-Shader "Truchet/GPUInstancedTileDev"
+Shader "Truchet/InstancedTileDebug"
 {
     SubShader
     {

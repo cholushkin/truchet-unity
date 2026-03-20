@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace Truchet
 {
-    public class TileMapModifierDirectionPattern : TileMapModifier
+    public class DirectionPatternModifier : LayoutModifier
     {
         [ResizableTextArea]
         [SerializeField] private string _rotationPattern;

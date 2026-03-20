@@ -9,7 +9,7 @@ using System.Collections.Generic;
 
 namespace Truchet
 {
-    public interface ITileCompositionStrategy
+    public interface ICompositionStrategy
     {
         ICompositionResult Compose(
             object layout,

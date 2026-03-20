@@ -785,7 +785,7 @@ MonoBehaviour:
   _width: 2
   _height: 2
   _tileSizePixels: 256
-  _gpuMaterial: {fileID: 0}
+  _gpuMaterial: {fileID: 2100000, guid: 965661b26d1c9cd4390dabeba80eafeb, type: 2}
 --- !u!4 &631685608
 Transform:
   m_ObjectHideFlags: 0
@@ -1063,7 +1063,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 2100000, guid: 965661b26d1c9cd4390dabeba80eafeb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1971,7 +1971,7 @@ MonoBehaviour:
   _width: 8
   _height: 8
   _tileSizePixels: 256
-  _gpuMaterial: {fileID: 2100000, guid: 965661b26d1c9cd4390dabeba80eafeb, type: 2}
+  _gpuMaterial: {fileID: 2100000, guid: de9a365193c8bc545aa410673fd3990d, type: 2}
 --- !u!4 &1954004868
 Transform:
   m_ObjectHideFlags: 0

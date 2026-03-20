@@ -23,7 +23,7 @@ namespace Truchet
     /// LogicalWidth/LogicalHeight define how grid coordinates
     /// map into that space.
     /// </summary>
-    public class QuadTreeSubdivisionModifierRandom : TileMapModifier
+    public class QuadTreeSubdivisionModifier : LayoutModifier
     {
         [Header("Subdivision")]
         [SerializeField, Range(0f, 1f)]
@@ -41,7 +41,7 @@ namespace Truchet
             if (!enabled)
                 return;
 
-            if (!(layout is QuadTreeTileMap map))
+            if (!(layout is QuadTree map))
                 return;
 
             if (_tileSet == null || _tileSet.tiles == null)
@@ -69,7 +69,7 @@ namespace Truchet
         // Region Mapping
         // --------------------------------------------------
 
-        private void ComputeSpatialRegion(QuadTreeTileMap map)
+        private void ComputeSpatialRegion(QuadTree map)
         {
             int logicalWidth = map.LogicalWidth;
             int logicalHeight = map.LogicalHeight;
@@ -93,7 +93,7 @@ namespace Truchet
         // Recursive Subdivision
         // --------------------------------------------------
 
-        private void SubdivideRecursive(QuadTreeTileMap map, int nodeIndex)
+        private void SubdivideRecursive(QuadTree map, int nodeIndex)
         {
             var node = map.GetNode(nodeIndex);
 
@@ -127,7 +127,7 @@ namespace Truchet
         // Region Tests
         // --------------------------------------------------
 
-        private bool NodeInsideRegion(QuadNodeInfo node)
+        private bool NodeInsideRegion(QuadNode node)
         {
             float minX = node.X;
             float minY = node.Y;
@@ -141,7 +141,7 @@ namespace Truchet
                 maxY <= _spatialRegionMax.y;
         }
 
-        private bool NodeIntersectsRegion(QuadNodeInfo node)
+        private bool NodeIntersectsRegion(QuadNode node)
         {
             float minX = node.X;
             float minY = node.Y;

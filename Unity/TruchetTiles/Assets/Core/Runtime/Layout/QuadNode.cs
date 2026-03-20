@@ -5,7 +5,7 @@
 
 namespace Truchet
 {
-    public struct QuadNodeInfo
+    public struct QuadNode
     {
         public float X;
         public float Y;

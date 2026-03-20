@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Truchet
 {
-    public class TileMapModifierRandom : TileMapModifier
+    public class RandomModifier : LayoutModifier
     {
         [SerializeField] private int[] _allowedRotations = { 0, 1, 2, 3 };
         

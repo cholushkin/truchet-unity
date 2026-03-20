@@ -12,7 +12,7 @@ using NaughtyAttributes;
 
 namespace Truchet
 {
-    public class TileMapRuntime : MonoBehaviour
+    public class TilePipeline : MonoBehaviour
     {
         public enum LayoutMode
         {
@@ -29,7 +29,7 @@ namespace Truchet
         [SerializeField] private int _tileSizePixels = 1;
         [SerializeField] private Material _gpuMaterial;
 
-        private ITileCompositionStrategy _compositionStrategy;
+        private ICompositionStrategy _compositionStrategy;
         private IRenderBackend _renderBackend;
 
         private Texture2DArray _tileArray;
@@ -44,7 +44,7 @@ namespace Truchet
                 return;
             }
 
-            _compositionStrategy = new MotifInstanceCompositionStrategy();
+            _compositionStrategy = new InstanceComposition();
             _renderBackend = new GPUInstancedRenderBackend(_gpuMaterial);
 
             Generate();
@@ -78,8 +78,8 @@ namespace Truchet
 
         private void GenerateRegularGrid()
         {
-            RegularGridTileMap map =
-                new RegularGridTileMap(_width, _height);
+            RegularGrid map =
+                new RegularGrid(_width, _height);
 
             var (tileSets, modifiers) = CollectModifiers();
 
@@ -98,7 +98,7 @@ namespace Truchet
 
             int resolution = _width * _tileSizePixels;
 
-            var resource = TileSetGPUResourceManager.Build(tileSets);
+            var resource = TileArrayBuilder.Build(tileSets);
 
             if (resource != null)
             {
@@ -115,8 +115,8 @@ namespace Truchet
 
         private void GenerateQuadTree()
         {
-            QuadTreeTileMap map =
-                new QuadTreeTileMap(1f);
+            QuadTree map =
+                new QuadTree(1f);
 
             var (tileSets, modifiers) = CollectModifiers();
 
@@ -125,7 +125,7 @@ namespace Truchet
 
             int resolution = _width * _tileSizePixels;
 
-            var resource = TileSetGPUResourceManager.Build(tileSets);
+            var resource = TileArrayBuilder.Build(tileSets);
 
             if (resource != null)
             {
@@ -140,10 +140,10 @@ namespace Truchet
                     resolution);
         }
 
-        private (TileSet[], TileMapModifier[]) CollectModifiers()
+        private (TileSet[], LayoutModifier[]) CollectModifiers()
         {
-            TileMapModifier[] modifiers =
-                GetComponents<TileMapModifier>();
+            LayoutModifier[] modifiers =
+                GetComponents<LayoutModifier>();
 
             List<TileSet> tileSets = new List<TileSet>();
 

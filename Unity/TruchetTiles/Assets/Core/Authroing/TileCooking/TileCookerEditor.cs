@@ -23,7 +23,7 @@ namespace Truchet
 
             if (GUILayout.Button("Cook Tile"))
             {
-                TileTextureCooker.Cook(def);
+                TileCooker.Cook(def);
             }
         }
     }

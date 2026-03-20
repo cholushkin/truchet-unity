@@ -21,7 +21,7 @@ using System.Collections.Generic;
 
 namespace Truchet
 {
-    public static class TileTextureCooker
+    public static class TileCooker
     {
         // Wing geometry invariants (do NOT expose to inspector)
         private const float WingScale = 0.5f; // logical domain occupies center 50%

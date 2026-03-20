@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Truchet
 {
-    public abstract class TileMapModifier : MonoBehaviour
+    public abstract class LayoutModifier : MonoBehaviour
     {
         [SerializeField] protected TileSet _tileSet;
 

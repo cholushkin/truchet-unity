@@ -8,14 +8,14 @@
 
 namespace Truchet
 {
-    public class RegularGridTileMap : IGridLayout
+    public class RegularGrid : IGridLayout
     {
         private readonly GridCell[,] _cells;
 
         public int Width { get; }
         public int Height { get; }
 
-        public RegularGridTileMap(int width, int height)
+        public RegularGrid(int width, int height)
         {
             Width = width;
             Height = height;

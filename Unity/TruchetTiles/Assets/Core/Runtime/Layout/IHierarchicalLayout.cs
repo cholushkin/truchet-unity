@@ -8,12 +8,12 @@ using System.Collections.Generic;
 
 namespace Truchet
 {
-    public interface IHierarchicalTileLayout
+    public interface IHierarchicalLayout
     {
         int NodeCount { get; }
         int LeafCount { get; }
 
-        QuadNodeInfo GetNode(int nodeIndex);
+        QuadNode GetNode(int nodeIndex);
         IEnumerable<int> GetLeafIndices();
 
         void Subdivide(int nodeIndex);

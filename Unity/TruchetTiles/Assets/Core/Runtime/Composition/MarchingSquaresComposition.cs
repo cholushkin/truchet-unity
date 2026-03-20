@@ -34,7 +34,7 @@ namespace Truchet
     ///   ↓
     /// MeshCompositionResult
     /// </summary>
-    public class MarchingSquaresCompositionStrategy : ITileCompositionStrategy
+    public class MarchingSquaresComposition : ICompositionStrategy
     {
         public ICompositionResult Compose(
             object layout,

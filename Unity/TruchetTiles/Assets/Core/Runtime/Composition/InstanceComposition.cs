@@ -9,14 +9,14 @@ using System.Collections.Generic;
 
 namespace Truchet
 {
-    public class MotifInstanceCompositionStrategy : ITileCompositionStrategy
+    public class InstanceComposition : ICompositionStrategy
     {
         public ICompositionResult Compose(
             object layout,
             TileSet[] tileSets,
             int resolution)
         {
-            var resource = TileSetGPUResourceManager.Build(tileSets);
+            var resource = TileArrayBuilder.Build(tileSets);
 
             if (resource == null)
                 return new InstanceCompositionResult(new List<TileInstanceGPU>(), resolution);
@@ -28,16 +28,19 @@ namespace Truchet
             if (layout is IGridLayout grid)
             {
                 var generator =
-                    new RegularGridInstanceGenerator(resolution / grid.Width);
+                    new GridInstanceBuilder(resolution / grid.Width);
+                
+                // 👉 Composition is doing rendering preparation work. This is slightly wrong layer-wise, BUT acceptable for now.
+                // Should be: Composition → abstract result (logical). Rendering → builds GPU instances
 
-                instances = generator.GenerateInstances(grid, tileSets, offsets);
+                instances = generator.BuildInstances(grid, tileSets, offsets);
             }
-            else if (layout is IHierarchicalTileLayout hierarchical)
+            else if (layout is IHierarchicalLayout hierarchical)
             {
                 var generator =
-                    new QuadTreeInstanceGenerator(resolution);
+                    new QuadTreeInstanceBuilder(resolution);
 
-                instances = generator.GenerateInstances(
+                instances = generator.BuildInstances(
                     hierarchical,
                     tileSets,
                     resolution,

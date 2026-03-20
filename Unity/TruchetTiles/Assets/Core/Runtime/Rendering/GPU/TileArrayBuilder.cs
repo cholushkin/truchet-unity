@@ -20,7 +20,7 @@ namespace Truchet
             new Dictionary<int, int>();
     }
 
-    public static class TileSetGPUResourceManager
+    public static class TileArrayBuilder
     {
         private static TileSetGPUResource _cachedResource;
         private static int _cachedHash;

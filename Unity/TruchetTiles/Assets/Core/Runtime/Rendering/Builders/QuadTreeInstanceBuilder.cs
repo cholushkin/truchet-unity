@@ -9,17 +9,17 @@ using UnityEngine;
 
 namespace Truchet
 {
-    public class QuadTreeInstanceGenerator
+    public class QuadTreeInstanceBuilder
     {
         private readonly int _canvasResolution;
 
-        public QuadTreeInstanceGenerator(int canvasResolution)
+        public QuadTreeInstanceBuilder(int canvasResolution)
         {
             _canvasResolution = canvasResolution;
         }
 
-        public List<TileInstanceGPU> GenerateInstances(
-            IHierarchicalTileLayout layout,
+        public List<TileInstanceGPU> BuildInstances(
+            IHierarchicalLayout layout,
             TileSet[] tileSets,
             int resolution,
             Dictionary<int, int> tileSetOffsets)
@@ -28,7 +28,7 @@ namespace Truchet
 
             foreach (int index in layout.GetLeafIndices())
             {
-                QuadNodeInfo node = layout.GetNode(index);
+                QuadNode node = layout.GetNode(index);
 
                 if (!node.IsActive)
                     continue;
@@ -60,7 +60,7 @@ namespace Truchet
             return instances;
         }
 
-        private bool IsValidNode(QuadNodeInfo node, TileSet[] tileSets)
+        private bool IsValidNode(QuadNode node, TileSet[] tileSets)
         {
             if (node.TileSetId < 0 ||
                 node.TileSetId >= tileSets.Length)

@@ -14,7 +14,7 @@ using System.Collections.Generic;
 
 namespace Truchet
 {
-    public class QuadTreeTileMap : IGridLayout, IHierarchicalTileLayout
+    public class QuadTree : IGridLayout, IHierarchicalLayout
     {
         private struct QuadNode
         {
@@ -66,7 +66,7 @@ namespace Truchet
 
         // --------------------------------------------------
 
-        public QuadTreeTileMap(
+        public QuadTree(
             float size = 1f,
             int logicalWidth = 8,
             int logicalHeight = 8)
@@ -211,13 +211,13 @@ namespace Truchet
         // Hierarchical Interface
         // --------------------------------------------------
 
-        public QuadNodeInfo GetNode(int nodeIndex)
+        public Truchet.QuadNode GetNode(int nodeIndex)
         {
             ValidateNodeIndex(nodeIndex);
 
             var n = _nodes[nodeIndex];
 
-            return new QuadNodeInfo
+            return new Truchet.QuadNode
             {
                 X = n.X,
                 Y = n.Y,

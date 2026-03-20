@@ -9,16 +9,16 @@ using UnityEngine;
 
 namespace Truchet
 {
-    public class RegularGridInstanceGenerator
+    public class GridInstanceBuilder
     {
         private readonly int _tileSizePixels;
 
-        public RegularGridInstanceGenerator(int tileSizePixels)
+        public GridInstanceBuilder(int tileSizePixels)
         {
             _tileSizePixels = tileSizePixels;
         }
 
-        public List<TileInstanceGPU> GenerateInstances(
+        public List<TileInstanceGPU> BuildInstances(
             IGridLayout layout,
             TileSet[] tileSets,
             Dictionary<int, int> tileSetOffsets)
