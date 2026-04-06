@@ -1,3 +1,10 @@
+// TODO ROADMAP:
+// [x] Normalize → pixel space conversion
+// [ ] Cache tile pixels
+// [ ] Use Color32 instead of Color
+// [ ] Pre-rotate tiles
+// [ ] Avoid per-frame allocations
+
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -29,11 +36,9 @@ namespace Truchet
             for (int i = 0; i < pixels.Length; i++)
                 pixels[i] = Color.clear;
 
-            float tileSize = resolution / (float)gridWidth;
-
             foreach (var inst in instances)
             {
-                DrawTile(pixels, resolution, inst, tileSets, tileSize);
+                DrawTile(pixels, resolution, inst, tileSets);
             }
 
             _output.SetPixels(pixels);
@@ -46,8 +51,7 @@ namespace Truchet
             Color[] target,
             int resolution,
             TileInstance inst,
-            TileSet[] tileSets,
-            float tileSize)
+            TileSet[] tileSets)
         {
             if (inst.TileSetId < 0 || inst.TileSetId >= tileSets.Length)
                 return;
@@ -65,10 +69,14 @@ namespace Truchet
 
             Texture2D tex = tile.texture;
 
-            int size = Mathf.RoundToInt(tileSize);
+            // NORMALIZED → PIXEL
+            float sizePx = inst.Size * resolution;
+            int size = Mathf.RoundToInt(sizePx);
 
-            int startX = Mathf.RoundToInt((inst.Position.x - 0.5f) * tileSize);
-            int startY = Mathf.RoundToInt((inst.Position.y - 0.5f) * tileSize);
+            Vector2 center = inst.Position * resolution;
+
+            int startX = Mathf.RoundToInt(center.x - sizePx * 0.5f);
+            int startY = Mathf.RoundToInt(center.y - sizePx * 0.5f);
 
             Color[] src = tex.GetPixels();
             int srcSize = tex.width;

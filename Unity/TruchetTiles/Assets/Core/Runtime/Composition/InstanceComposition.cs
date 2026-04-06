@@ -2,6 +2,7 @@
 // [x] Simplified composition (no interfaces)
 // [x] Strongly typed layout entry points
 // [x] Unified tile instance output
+// [x] Normalize output (0..1 space)
 // [ ] Move builders into dedicated logical builders
 // [ ] Add bounds calculation
 // [ ] Add chunked composition
@@ -12,26 +13,20 @@ using UnityEngine;
 
 namespace Truchet
 {
-    /// <summary>
-    /// Converts layout data into logical tile instances.
-    ///
-    /// This is the ONLY composition step in the system.
-    /// Produces a unified representation for all rendering backends.
-    /// </summary>
     public static class InstanceComposition
     {
         // --------------------------------------------------
-        // GRID ENTRY POINT
+        // GRID ENTRY POINT (NORMALIZED)
         // --------------------------------------------------
 
         public static List<TileInstance> Build(
             IGridLayout grid,
-            TileSet[] tileSets,
-            int resolution)
+            TileSet[] tileSets)
         {
             List<TileInstance> instances = new List<TileInstance>();
 
-            float tileSize = (float)resolution / grid.Width;
+            float invWidth  = 1f / grid.Width;
+            float invHeight = 1f / grid.Height;
 
             for (int y = 0; y < grid.Height; y++)
             {
@@ -45,13 +40,15 @@ namespace Truchet
                     instances.Add(new TileInstance
                     {
                         Position = new Vector2(
-                            (x + 0.5f) * tileSize,
-                            (y + 0.5f) * tileSize),
-                        Size = tileSize,
+                            (x + 0.5f) * invWidth,
+                            (y + 0.5f) * invHeight),
+
+                        Size = invWidth, // assume square tiles
+
                         TileSetId = cell.TileSetId,
                         TileIndex = cell.TileIndex,
-                        Rotation = cell.Rotation,
-                        Level = 0
+                        Rotation  = cell.Rotation,
+                        Level     = 0
                     });
                 }
             }
@@ -62,13 +59,12 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // HIERARCHICAL ENTRY POINT
+        // HIERARCHICAL ENTRY POINT (ALREADY NORMALIZED)
         // --------------------------------------------------
 
         public static List<TileInstance> Build(
             IHierarchicalLayout hierarchical,
-            TileSet[] tileSets,
-            int resolution)
+            TileSet[] tileSets)
         {
             List<TileInstance> instances = new List<TileInstance>();
 
@@ -82,18 +78,18 @@ namespace Truchet
                 if (!IsValid(node, tileSets))
                     continue;
 
-                float size = node.Size * resolution;
-
                 instances.Add(new TileInstance
                 {
                     Position = new Vector2(
-                        (node.X + node.Size * 0.5f) * resolution,
-                        (node.Y + node.Size * 0.5f) * resolution),
-                    Size = size,
+                        node.X + node.Size * 0.5f,
+                        node.Y + node.Size * 0.5f),
+
+                    Size = node.Size,
+
                     TileSetId = node.TileSetId,
                     TileIndex = node.TileIndex,
-                    Rotation = node.Rotation,
-                    Level = node.Level
+                    Rotation  = node.Rotation,
+                    Level     = node.Level
                 });
             }
 

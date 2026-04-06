@@ -1,3 +1,11 @@
+// TODO ROADMAP:
+// [x] Layout → Modifier → Composition → Rendering pipeline
+// [x] Support Grid and QuadTree layouts
+// [x] Removed resolution dependency from composition
+// [ ] Add change detection (avoid full rebuild)
+// [ ] Add chunked generation
+// [ ] Add async generation option
+
 using UnityEngine;
 using System.Collections.Generic;
 using NaughtyAttributes;
@@ -55,8 +63,7 @@ namespace Truchet
 
             var instances = InstanceComposition.Build(
                 (IGridLayout)map,
-                tileSets,
-                _width);
+                tileSets);
 
             _renderBehaviour.Render(instances, tileSets, _width);
         }
@@ -79,8 +86,7 @@ namespace Truchet
 
             var instances = InstanceComposition.Build(
                 (IHierarchicalLayout)map,
-                tileSets,
-                _width);
+                tileSets);
 
             _renderBehaviour.Render(instances, tileSets, _width);
         }
