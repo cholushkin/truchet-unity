@@ -31,7 +31,7 @@ namespace Truchet
         {
             List<TileInstance> instances = new List<TileInstance>();
 
-            float tileSize = 1f;
+            float tileSize = (float)resolution / grid.Width;
 
             for (int y = 0; y < grid.Height; y++)
             {
@@ -45,8 +45,8 @@ namespace Truchet
                     instances.Add(new TileInstance
                     {
                         Position = new Vector2(
-                            x + 0.5f,
-                            y + 0.5f),
+                            (x + 0.5f) * tileSize,
+                            (y + 0.5f) * tileSize),
                         Size = tileSize,
                         TileSetId = cell.TileSetId,
                         TileIndex = cell.TileIndex,

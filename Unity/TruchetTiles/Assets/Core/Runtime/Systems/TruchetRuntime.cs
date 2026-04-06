@@ -1,12 +1,3 @@
-// TODO ROADMAP:
-// [x] Removed composition abstraction
-// [x] Direct tile instance generation
-// [x] GPU render pipeline integration
-// [ ] Add regeneration trigger system
-// [ ] Add runtime tile updates
-// [ ] Add chunk streaming support
-// [ ] Decouple resource building from pipeline
-
 using UnityEngine;
 using System.Collections.Generic;
 using NaughtyAttributes;
@@ -27,35 +18,11 @@ namespace Truchet
         [SerializeField] private int _height = 8;
 
         [Header("Rendering")]
-        [SerializeField] private int _tileSizePixels = 64;
-        [SerializeField] private Material _gpuMaterial;
-
-        private IRenderBackend _renderBackend;
-
-        private Texture2DArray _tileArray;
-        private List<TileInstanceGPU> _gpuInstances;
+        [SerializeField] private TruchetRenderBehaviour _renderBehaviour;
 
         private void Start()
         {
-            if (_gpuMaterial == null)
-            {
-                Debug.LogError("GPU Material not assigned.");
-                return;
-            }
-
-            _renderBackend = new GPUInstancedRenderBackend(_gpuMaterial);
-
             Generate();
-        }
-
-        private void Update()
-        {
-            if (_gpuInstances == null || _gpuInstances.Count == 0)
-                return;
-
-            _renderBackend.RenderInstances(
-                _gpuInstances,
-                _width * _tileSizePixels);
         }
 
         [Button]
@@ -74,7 +41,7 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // REGULAR GRID
+        // GRID
         // --------------------------------------------------
 
         private void GenerateRegularGrid()
@@ -86,29 +53,12 @@ namespace Truchet
             foreach (var mod in modifiers)
                 mod.Apply(map);
 
-            int resolution = _width * _tileSizePixels;
-
-            var resource = TileArrayBuilder.Build(tileSets);
-
-            if (resource == null)
-            {
-                Debug.LogError("Failed to build TileArray.");
-                return;
-            }
-
-            _tileArray = resource.TextureArray;
-            _renderBackend.SetTileTextureArray(_tileArray);
-
             var instances = InstanceComposition.Build(
-                map,
+                (IGridLayout)map,
                 tileSets,
-                resolution);
+                _width);
 
-            var builder = new InstanceRenderDataBuilder();
-
-            _gpuInstances = builder.Build(
-                instances,
-                resource.TileSetOffsets);
+            _renderBehaviour.Render(instances, tileSets, _width);
         }
 
         // --------------------------------------------------
@@ -127,29 +77,12 @@ namespace Truchet
             foreach (var mod in modifiers)
                 mod.Apply(map);
 
-            int resolution = _width * _tileSizePixels;
-
-            var resource = TileArrayBuilder.Build(tileSets);
-
-            if (resource == null)
-            {
-                Debug.LogError("Failed to build TileArray.");
-                return;
-            }
-
-            _tileArray = resource.TextureArray;
-            _renderBackend.SetTileTextureArray(_tileArray);
-
             var instances = InstanceComposition.Build(
-                (IGridLayout)map,
+                (IHierarchicalLayout)map,
                 tileSets,
-                resolution);
+                _width);
 
-            var builder = new InstanceRenderDataBuilder();
-
-            _gpuInstances = builder.Build(
-                instances,
-                resource.TileSetOffsets);
+            _renderBehaviour.Render(instances, tileSets, _width);
         }
 
         // --------------------------------------------------
