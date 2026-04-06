@@ -9,5 +9,5 @@ PromptContextCollector(
     ignores=[],
     template_path="UserScriptsCoding/TextTemplates/DevelopTogetherTemplate.txt",  # Relative to project root
     template_vars={},
-    output_path="UserScriptsCoding/Outputs/PromptPortTruchetTiles.txt"
+    output_path="UserScriptsCoding/Outputs/PromptUnityTruchetTiles.txt"
 ).run()
