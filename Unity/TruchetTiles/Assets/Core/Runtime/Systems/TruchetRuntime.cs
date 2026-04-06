@@ -1,6 +1,7 @@
 // TODO ROADMAP:
-// [x] Composition result integration (logical instances)
-// [x] RenderDataBuilder integration (GPU conversion)
+// [x] Removed composition abstraction
+// [x] Direct tile instance generation
+// [x] GPU render pipeline integration
 // [ ] Add regeneration trigger system
 // [ ] Add runtime tile updates
 // [ ] Add chunk streaming support
@@ -12,7 +13,7 @@ using NaughtyAttributes;
 
 namespace Truchet
 {
-    public class TilePipeline : MonoBehaviour
+    public class TruchetRuntime : MonoBehaviour
     {
         public enum LayoutMode
         {
@@ -29,12 +30,9 @@ namespace Truchet
         [SerializeField] private int _tileSizePixels = 64;
         [SerializeField] private Material _gpuMaterial;
 
-        private ICompositionStrategy _compositionStrategy;
         private IRenderBackend _renderBackend;
 
         private Texture2DArray _tileArray;
-
-        private InstanceCompositionResult _instanceResult;
         private List<TileInstanceGPU> _gpuInstances;
 
         private void Start()
@@ -45,7 +43,6 @@ namespace Truchet
                 return;
             }
 
-            _compositionStrategy = new InstanceComposition();
             _renderBackend = new GPUInstancedRenderBackend(_gpuMaterial);
 
             Generate();
@@ -58,7 +55,7 @@ namespace Truchet
 
             _renderBackend.RenderInstances(
                 _gpuInstances,
-                _instanceResult.Resolution);
+                _width * _tileSizePixels);
         }
 
         [Button]
@@ -102,16 +99,15 @@ namespace Truchet
             _tileArray = resource.TextureArray;
             _renderBackend.SetTileTextureArray(_tileArray);
 
-            _instanceResult =
-                (InstanceCompositionResult)_compositionStrategy.Compose(
-                    map,
-                    tileSets,
-                    resolution);
+            var instances = InstanceComposition.Build(
+                map,
+                tileSets,
+                resolution);
 
             var builder = new InstanceRenderDataBuilder();
 
             _gpuInstances = builder.Build(
-                _instanceResult.Instances,
+                instances,
                 resource.TileSetOffsets);
         }
 
@@ -144,16 +140,15 @@ namespace Truchet
             _tileArray = resource.TextureArray;
             _renderBackend.SetTileTextureArray(_tileArray);
 
-            _instanceResult =
-                (InstanceCompositionResult)_compositionStrategy.Compose(
-                    map,
-                    tileSets,
-                    resolution);
+            var instances = InstanceComposition.Build(
+                (IGridLayout)map,
+                tileSets,
+                resolution);
 
             var builder = new InstanceRenderDataBuilder();
 
             _gpuInstances = builder.Build(
-                _instanceResult.Instances,
+                instances,
                 resource.TileSetOffsets);
         }
 

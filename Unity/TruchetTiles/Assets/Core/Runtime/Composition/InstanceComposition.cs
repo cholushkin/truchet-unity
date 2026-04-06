@@ -1,6 +1,7 @@
 // TODO ROADMAP:
-// [x] Motif instanced composition (logical instances)
-// [x] Normalized world space (1 tile = 1 unit)
+// [x] Simplified composition (no interfaces)
+// [x] Strongly typed layout entry points
+// [x] Unified tile instance output
 // [ ] Move builders into dedicated logical builders
 // [ ] Add bounds calculation
 // [ ] Add chunked composition
@@ -13,97 +14,99 @@ namespace Truchet
 {
     /// <summary>
     /// Converts layout data into logical tile instances.
-    /// Produces renderer-agnostic data used by the rendering layer.
+    ///
+    /// This is the ONLY composition step in the system.
+    /// Produces a unified representation for all rendering backends.
     /// </summary>
-    public class InstanceComposition : ICompositionStrategy
+    public static class InstanceComposition
     {
-        public ICompositionResult Compose(
-            object layout,
+        // --------------------------------------------------
+        // GRID ENTRY POINT
+        // --------------------------------------------------
+
+        public static List<TileInstance> Build(
+            IGridLayout grid,
             TileSet[] tileSets,
             int resolution)
         {
             List<TileInstance> instances = new List<TileInstance>();
 
-            // --------------------------------------------------
-            // GRID LAYOUT
-            // --------------------------------------------------
+            float tileSize = 1f;
 
-            if (layout is IGridLayout grid)
+            for (int y = 0; y < grid.Height; y++)
             {
-                float tileSize = 1f;
-
-                for (int y = 0; y < grid.Height; y++)
+                for (int x = 0; x < grid.Width; x++)
                 {
-                    for (int x = 0; x < grid.Width; x++)
-                    {
-                        GridCell cell = grid.GetCell(x, y);
+                    GridCell cell = grid.GetCell(x, y);
 
-                        if (!IsValid(cell, tileSets))
-                            continue;
-
-                        instances.Add(new TileInstance
-                        {
-                            Position = new Vector2(
-                                x + 0.5f,
-                                y + 0.5f),
-
-                            Size = tileSize,
-
-                            TileSetId = cell.TileSetId,
-                            TileIndex = cell.TileIndex,
-                            Rotation = cell.Rotation,
-
-                            Level = 0
-                        });
-                    }
-                }
-            }
-
-            // --------------------------------------------------
-            // QUADTREE LAYOUT
-            // --------------------------------------------------
-
-            else if (layout is IHierarchicalLayout hierarchical)
-            {
-                foreach (int index in hierarchical.GetLeafIndices())
-                {
-                    var node = hierarchical.GetNode(index);
-
-                    if (!node.IsActive)
+                    if (!IsValid(cell, tileSets))
                         continue;
-
-                    if (!IsValid(node, tileSets))
-                        continue;
-
-                    float size = node.Size * resolution;
 
                     instances.Add(new TileInstance
                     {
                         Position = new Vector2(
-                            (node.X + node.Size * 0.5f) * resolution,
-                            (node.Y + node.Size * 0.5f) * resolution),
-
-                        Size = size,
-
-                        TileSetId = node.TileSetId,
-                        TileIndex = node.TileIndex,
-                        Rotation = node.Rotation,
-
-                        Level = node.Level
+                            x + 0.5f,
+                            y + 0.5f),
+                        Size = tileSize,
+                        TileSetId = cell.TileSetId,
+                        TileIndex = cell.TileIndex,
+                        Rotation = cell.Rotation,
+                        Level = 0
                     });
                 }
             }
 
-            Debug.Log($"[Compose] Total instances: {instances.Count}");
+            Debug.Log($"[Compose/Grid] Total instances: {instances.Count}");
 
-            return new InstanceCompositionResult(instances, resolution);
+            return instances;
+        }
+
+        // --------------------------------------------------
+        // HIERARCHICAL ENTRY POINT
+        // --------------------------------------------------
+
+        public static List<TileInstance> Build(
+            IHierarchicalLayout hierarchical,
+            TileSet[] tileSets,
+            int resolution)
+        {
+            List<TileInstance> instances = new List<TileInstance>();
+
+            foreach (int index in hierarchical.GetLeafIndices())
+            {
+                var node = hierarchical.GetNode(index);
+
+                if (!node.IsActive)
+                    continue;
+
+                if (!IsValid(node, tileSets))
+                    continue;
+
+                float size = node.Size * resolution;
+
+                instances.Add(new TileInstance
+                {
+                    Position = new Vector2(
+                        (node.X + node.Size * 0.5f) * resolution,
+                        (node.Y + node.Size * 0.5f) * resolution),
+                    Size = size,
+                    TileSetId = node.TileSetId,
+                    TileIndex = node.TileIndex,
+                    Rotation = node.Rotation,
+                    Level = node.Level
+                });
+            }
+
+            Debug.Log($"[Compose/Hierarchy] Total instances: {instances.Count}");
+
+            return instances;
         }
 
         // --------------------------------------------------
         // VALIDATION
         // --------------------------------------------------
 
-        private bool IsValid(GridCell cell, TileSet[] tileSets)
+        private static bool IsValid(GridCell cell, TileSet[] tileSets)
         {
             if (cell.TileSetId < 0 || cell.TileSetId >= tileSets.Length)
                 return false;
@@ -119,7 +122,7 @@ namespace Truchet
             return set.tiles[cell.TileIndex] != null;
         }
 
-        private bool IsValid(QuadNode node, TileSet[] tileSets)
+        private static bool IsValid(QuadNode node, TileSet[] tileSets)
         {
             if (node.TileSetId < 0 || node.TileSetId >= tileSets.Length)
                 return false;

@@ -507,7 +507,7 @@ GameObject:
   - component: {fileID: 1821647914}
   - component: {fileID: 1821647913}
   m_Layer: 0
-  m_Name: TruchetPipeline
+  m_Name: TruchetRuntime
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
