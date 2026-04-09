@@ -12,15 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 343ad3f71cbab5a4f8c8052899046373, type: 3}
   m_Name: FNE(winged)
   m_EditorClassIdentifier: Assembly-CSharp-Editor::Truchet.TileCooking.TileCookDefinition
-  Width: 256
-  Height: 256
+  Width: 512
+  Height: 512
   IsWinged: 1
   OutputFolder: Core/Textures/Tiles
-  Topology:
-    north: 1
-    east: 1
-    south: 0
-    west: 0
   CommandScript: '// FNE (winged)
 
 

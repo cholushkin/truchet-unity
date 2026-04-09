@@ -1,15 +1,35 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace Truchet
 {
+    // TODO ROADMAP:
+    // [x] Texture backend integration
+    // [x] Sampling mode support
+    // [x] Cache toggle exposure
+    // [x] Binary threshold toggle
+    // [ ] Live updates without full rebuild
+    // [ ] Debug visualization
+    // [ ] Async rendering
+
     public class TextureRenderBehaviour : TruchetRenderBehaviour
     {
         [Header("Output")]
-        [SerializeField] private int _resolution = 512;
+        public int Resolution = 512;
 
-        [SerializeField] private Renderer _previewRenderer;
-        [SerializeField] private SpriteRenderer _spriteRenderer;
+        [Header("Sampling")]
+        public TileSamplingMode SamplingMode = TileSamplingMode.Coverage;
+
+        [Header("Performance")]
+        public bool UseTilePixelCache = true;
+
+        [Header("Post Processing")]
+        public bool ApplyBinaryThreshold = true; // NEW
+
+        [Header("Output")]
+        public Color BackgroundColor = Color.white;
+
+        public Renderer TargetRenderer;
 
         private TextureRenderBackend _backend = new TextureRenderBackend();
 
@@ -18,29 +38,24 @@ namespace Truchet
             TileSet[] tileSets,
             int gridWidth)
         {
-            Texture2D texture = _backend.Render(
+            var options = new TileRenderOptions
+            {
+                BackgroundColor = BackgroundColor,
+                SamplingMode = SamplingMode,
+                UseTilePixelCache = UseTilePixelCache,
+                ApplyBinaryThreshold = ApplyBinaryThreshold // NEW
+            };
+
+            _backend.SetOptions(options);
+
+            Texture2D tex = _backend.Render(
                 instances,
                 tileSets,
-                gridWidth,
-                _resolution);
+                Resolution);
 
-            ApplyTexture(texture);
-        }
-
-        private void ApplyTexture(Texture2D texture)
-        {
-            if (_previewRenderer != null)
-                _previewRenderer.material.mainTexture = texture;
-
-            if (_spriteRenderer != null)
+            if (TargetRenderer != null)
             {
-                Sprite sprite = Sprite.Create(
-                    texture,
-                    new Rect(0, 0, texture.width, texture.height),
-                    new Vector2(0.5f, 0.5f),
-                    texture.width);
-
-                _spriteRenderer.sprite = sprite;
+                TargetRenderer.sharedMaterial.mainTexture = tex;
             }
         }
     }

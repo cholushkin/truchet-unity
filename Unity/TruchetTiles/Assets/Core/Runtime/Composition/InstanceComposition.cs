@@ -3,6 +3,7 @@
 // [x] Strongly typed layout entry points
 // [x] Unified tile instance output
 // [x] Normalize output (0..1 space)
+// [x] Propagate winged tile flag
 // [ ] Move builders into dedicated logical builders
 // [ ] Add bounds calculation
 // [ ] Add chunked composition
@@ -37,18 +38,23 @@ namespace Truchet
                     if (!IsValid(cell, tileSets))
                         continue;
 
+                    var set = tileSets[cell.TileSetId];
+                    var tile = set.tiles[cell.TileIndex];
+
                     instances.Add(new TileInstance
                     {
                         Position = new Vector2(
                             (x + 0.5f) * invWidth,
                             (y + 0.5f) * invHeight),
 
-                        Size = invWidth, // assume square tiles
+                        Size = invWidth,
 
                         TileSetId = cell.TileSetId,
                         TileIndex = cell.TileIndex,
                         Rotation  = cell.Rotation,
-                        Level     = 0
+                        Level     = 0,
+
+                        IsWinged = tile.IsWinged
                     });
                 }
             }
@@ -78,6 +84,9 @@ namespace Truchet
                 if (!IsValid(node, tileSets))
                     continue;
 
+                var set = tileSets[node.TileSetId];
+                var tile = set.tiles[node.TileIndex];
+
                 instances.Add(new TileInstance
                 {
                     Position = new Vector2(
@@ -89,7 +98,9 @@ namespace Truchet
                     TileSetId = node.TileSetId,
                     TileIndex = node.TileIndex,
                     Rotation  = node.Rotation,
-                    Level     = node.Level
+                    Level     = node.Level,
+
+                    IsWinged = tile.IsWinged
                 });
             }
 

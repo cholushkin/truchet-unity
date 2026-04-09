@@ -1,5 +1,6 @@
 // TODO ROADMAP:
 // [x] Logical tile instance (composition output)
+// [x] Winged flag for renderer-aware sampling
 // [ ] Add bounds metadata
 // [ ] Add flags (visibility, lod, etc.)
 // [ ] Add custom per-instance data (color, params)
@@ -22,6 +23,8 @@ namespace Truchet
         public int TileIndex;
         public int Rotation;
 
-        public int Level; // for QuadTree / LOD
+        public int Level;
+
+        public bool IsWinged;
     }
 }
