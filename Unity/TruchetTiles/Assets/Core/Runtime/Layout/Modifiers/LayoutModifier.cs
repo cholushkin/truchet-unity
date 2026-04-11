@@ -8,6 +8,7 @@
 // [ ] Add multiscale compatibility
 
 using UnityEngine;
+using Random = GameLib.Random.Random;
 
 namespace Truchet
 {
@@ -39,6 +40,6 @@ namespace Truchet
             endY = Mathf.Clamp(_regionMax.y, 0, layout.Height);
         }
 
-        public abstract void Apply(IGridLayout layout);
+        public abstract void Apply(IGridLayout layout, Random rng);
     }
 }

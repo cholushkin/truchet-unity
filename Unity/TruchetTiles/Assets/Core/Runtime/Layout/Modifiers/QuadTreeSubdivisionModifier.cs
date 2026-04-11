@@ -9,7 +9,9 @@
 // [ ] View-dependent subdivision
 // [ ] Burst-compatible refactor
 
+using GameLib.Random;
 using UnityEngine;
+
 
 namespace Truchet
 {
@@ -28,6 +30,8 @@ namespace Truchet
         [Header("Subdivision")]
         [SerializeField, Range(0f, 1f)]
         private float _subdivideProbability = 0.5f;
+        
+        [SerializeField] private int[] _allowedRotations = { 0, 1, 2, 3 };
 
         [SerializeField]
         private int _maxDepth = 3;
@@ -35,11 +39,14 @@ namespace Truchet
         // Derived spatial region (not serialized)
         private Vector2 _spatialRegionMin;
         private Vector2 _spatialRegionMax;
+        private GameLib.Random.Random _rng;
 
-        public override void Apply(IGridLayout layout)
+        public override void Apply(IGridLayout layout, GameLib.Random.Random rng)
         {
             if (!enabled)
                 return;
+
+            _rng = rng;
 
             if (!(layout is QuadTree map))
                 return;
@@ -58,8 +65,8 @@ namespace Truchet
                 if (!NodeInsideRegion(node))
                     continue;
 
-                int tileIndex = Random.Range(0, _tileSet.tiles.Length);
-                int rotation = Random.Range(0, 4);
+                int tileIndex = _rng.Range(0, _tileSet.tiles.Length);
+                int rotation = _rng.FromArray(_allowedRotations);
 
                 map.SetTileByNode(index, TileSetId, tileIndex, rotation);
             }
@@ -106,8 +113,12 @@ namespace Truchet
             if (!NodeIntersectsRegion(node))
                 return;
 
-            if (Random.value > _subdivideProbability)
+            if (!_rng.TrySpawnEvent(_subdivideProbability))
+            {
+                if(nodeIndex == 0)
+                    Debug.Log("fail");
                 return;
+            }
 
             map.Subdivide(nodeIndex);
 

@@ -7,6 +7,7 @@
 
 using NaughtyAttributes;
 using UnityEngine;
+using Random = GameLib.Random.Random;
 
 namespace Truchet
 {
@@ -15,7 +16,7 @@ namespace Truchet
         [ResizableTextArea]
         [SerializeField] private string _rotationPattern;
 
-        public override void Apply(IGridLayout layout)
+        public override void Apply(IGridLayout layout, Random rng)
         {
             if (!enabled)
                 return;

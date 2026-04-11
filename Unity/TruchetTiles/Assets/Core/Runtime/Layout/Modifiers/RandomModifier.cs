@@ -8,17 +8,24 @@
 // [ ] Add adjacency-aware rules
 
 using UnityEngine;
+using GameLib.Random;
+using Random = GameLib.Random.Random;
 
 namespace Truchet
 {
     public class RandomModifier : LayoutModifier
     {
         [SerializeField] private int[] _allowedRotations = { 0, 1, 2, 3 };
+        private Random _rng;
 
-        public override void Apply(IGridLayout layout)
+        public override void Apply(IGridLayout layout, GameLib.Random.Random rng)
         {
             if (!enabled)
                 return;
+
+            if (_allowedRotations == null || _allowedRotations.Length < 1)
+                _allowedRotations = new int[] { 0, 1, 2, 3 };
+            _rng = rng;
 
             if (_tileSet == null || _tileSet.tiles == null || _tileSet.tiles.Length == 0)
             {
@@ -34,7 +41,7 @@ namespace Truchet
             {
                 for (int x = startX; x < endX; x++)
                 {
-                    int tileIndex = Random.Range(0, _tileSet.tiles.Length);
+                    int tileIndex = _rng.Range(0, _tileSet.tiles.Length);
                     int rotation = GetRotation();
 
                     layout.SetTile(x, y, TileSetId, tileIndex, rotation);
@@ -42,15 +49,7 @@ namespace Truchet
             }
         }
 
-        private int GetRotation()
-        {
-            if (_allowedRotations != null && _allowedRotations.Length > 0)
-            {
-                int index = Random.Range(0, _allowedRotations.Length);
-                return Mathf.Clamp(_allowedRotations[index], 0, 3);
-            }
-
-            return Random.Range(0, 4);
-        }
+        private int GetRotation() =>
+            _rng.Range(0, _allowedRotations.Length);
     }
 }

@@ -2,13 +2,16 @@
 // [x] Layout → Modifier → Composition → Rendering pipeline
 // [x] Support Grid and QuadTree layouts
 // [x] Removed resolution dependency from composition
+// [x] Overlay integration (debug rendering)
 // [ ] Add change detection (avoid full rebuild)
 // [ ] Add chunked generation
 // [ ] Add async generation option
 
 using UnityEngine;
 using System.Collections.Generic;
+using GameLib.Random;
 using NaughtyAttributes;
+using Random = GameLib.Random.Random;
 
 namespace Truchet
 {
@@ -28,6 +31,14 @@ namespace Truchet
         [Header("Rendering")]
         [SerializeField] private TruchetRenderBehaviour _renderBehaviour;
 
+        [Header("Debug Overlay (Optional)")]
+        [SerializeField] private CellRenderDbgOverlay _overlay;
+
+        [AddRandomizeButton]
+        public uint RootSeed;
+
+        private Random _rng;
+
         private void Start()
         {
             Generate();
@@ -36,14 +47,17 @@ namespace Truchet
         [Button]
         public void Generate()
         {
+            _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
+            Debug.Log($"Root seed: {RootSeed}");
+            
             switch (_layoutMode)
             {
                 case LayoutMode.RegularGrid:
-                    GenerateRegularGrid();
+                    GenerateRegularGrid(_rng);
                     break;
 
                 case LayoutMode.QuadTree:
-                    GenerateQuadTree();
+                    GenerateQuadTree(_rng);
                     break;
             }
         }
@@ -52,27 +66,27 @@ namespace Truchet
         // GRID
         // --------------------------------------------------
 
-        private void GenerateRegularGrid()
+        private void GenerateRegularGrid(Random rng)
         {
             RegularGrid map = new RegularGrid(_width, _height);
 
             var (tileSets, modifiers) = CollectModifiers();
 
             foreach (var mod in modifiers)
-                mod.Apply(map);
+                mod.Apply(map, rng);
 
             var instances = InstanceComposition.Build(
                 (IGridLayout)map,
                 tileSets);
 
-            _renderBehaviour.Render(instances, tileSets, _width);
+            Render(instances, tileSets);
         }
 
         // --------------------------------------------------
         // QUADTREE
         // --------------------------------------------------
 
-        private void GenerateQuadTree()
+        private void GenerateQuadTree(Random rng)
         {
             QuadTree map = new QuadTree(
                 size: 1f,
@@ -82,13 +96,27 @@ namespace Truchet
             var (tileSets, modifiers) = CollectModifiers();
 
             foreach (var mod in modifiers)
-                mod.Apply(map);
+                mod.Apply(map, rng);
 
             var instances = InstanceComposition.Build(
                 (IHierarchicalLayout)map,
                 tileSets);
 
-            _renderBehaviour.Render(instances, tileSets, _width);
+            Render(instances, tileSets);
+        }
+
+        // --------------------------------------------------
+        // SHARED RENDER PATH
+        // --------------------------------------------------
+
+        private void Render(List<TileInstance> instances, TileSet[] tileSets)
+        {
+            _renderBehaviour?.Render(instances, tileSets, _width);
+
+            if (_overlay != null)
+            {
+                _overlay.SetData(instances);
+            }
         }
 
         // --------------------------------------------------
