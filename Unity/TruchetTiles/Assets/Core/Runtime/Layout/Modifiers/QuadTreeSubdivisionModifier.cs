@@ -116,7 +116,7 @@ namespace Truchet
             if (!_rng.TrySpawnEvent(_subdivideProbability))
             {
                 if(nodeIndex == 0)
-                    Debug.Log("fail");
+                    Debug.Log($"fail  state: {_rng.GetState()}");
                 return;
             }
 

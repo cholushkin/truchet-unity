@@ -423,7 +423,7 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1633681726}
   m_Enabled: 1
-  serializedVersion: 12
+  serializedVersion: 13
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Intensity: 7
@@ -475,7 +475,7 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
-  m_ShadowRadius: 0
+  m_ShapeRadius: 0
   m_ShadowAngle: 0
   m_LightUnit: 1
   m_LuxAtDistance: 1
@@ -505,7 +505,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1821647915}
   - component: {fileID: 1821647914}
-  - component: {fileID: 1821647913}
+  - component: {fileID: 1821647917}
   - component: {fileID: 1821647916}
   m_Layer: 0
   m_Name: TruchetRuntime
@@ -514,22 +514,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1821647913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1821647912}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03da45b0634a93a498d62543c2c03527, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Truchet.RandomModifier
-  _tileSet: {fileID: 11400000, guid: 91d9f639fad0de04bb16471208b455ac, type: 2}
-  _regionMin: {x: 0, y: 0}
-  _regionMax: {x: 2147483647, y: 2147483647}
-  _allowedRotations: 00000000010000000200000003000000
 --- !u!114 &1821647914
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -542,10 +526,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4dfead02212b04893ecc4afd88cf05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Truchet.TilePipeline
-  _layoutMode: 0
+  _layoutMode: 1
   _width: 16
   _height: 16
   _renderBehaviour: {fileID: 1821647916}
+  _overlay: {fileID: 0}
+  RootSeed: 0
 --- !u!4 &1821647915
 Transform:
   m_ObjectHideFlags: 0
@@ -575,6 +561,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Truchet.GPUInstancedRenderBehaviour
   _material: {fileID: 2100000, guid: de9a365193c8bc545aa410673fd3990d, type: 2}
   _scale: 1
+--- !u!114 &1821647917
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1821647912}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbc500afb6480f842b110ee987df5138, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: TruchetTiles::Truchet.QuadTreeSubdivisionModifier
+  _tileSet: {fileID: 11400000, guid: a6d60bc68d9c8594d8ce73ebbb712513, type: 2}
+  _regionMin: {x: 0, y: 0}
+  _regionMax: {x: 2147483647, y: 2147483647}
+  _subdivideProbability: 0.5
+  _allowedRotations: 00000000010000000200000003000000
+  _maxDepth: 4
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
