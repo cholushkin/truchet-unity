@@ -152,6 +152,17 @@ namespace Truchet
                 _gridLayout.SetTile(x, y, 0, 0, 0);
                 Debug.Log($"ERASE TILE: {FormatTile(0, 0, 0)}");
             }
+            
+            if (mode == TileInteractionController.InteractionMode.Turn)
+            {
+                var cell = _gridLayout.GetCell(x, y);
+
+                int newRot = (cell.Rotation + 1) & 3;
+
+                _gridLayout.SetTile(x, y, cell.TileSetId, cell.TileIndex, newRot);
+
+                Debug.Log($"TURN TILE: {FormatTile(cell.TileSetId, cell.TileIndex, newRot)}");
+            }
         }
 
         private void ModifyQuadTree(Vector2 uv, TileInteractionController.InteractionMode mode)
@@ -198,7 +209,7 @@ namespace Truchet
 
                     int parentIndex = node.ParentIndex;
 
-                    quad.CollapseRecursive(parentIndex);
+                    quad.Collapse(parentIndex);
 
                     var (setId, tileIndex, rot) = GetRandomTile();
                     quad.SetTileByNode(parentIndex, setId, tileIndex, rot);
@@ -212,6 +223,22 @@ namespace Truchet
                 {
                     quad.SetTileByNode(nodeIndex, 0, 0, 0);
                     Debug.Log($"ERASE TILE: {FormatTile(0, 0, 0)}");
+                    break;
+                }
+                
+                case TileInteractionController.InteractionMode.Turn:
+                {
+                    var node = quad.GetNode(nodeIndex);
+
+                    if (!node.IsLeaf)
+                        return;
+
+                    int newRot = (node.Rotation + 1) & 3;
+
+                    quad.SetTileByNode(nodeIndex, node.TileSetId, node.TileIndex, newRot);
+
+                    Debug.Log($"TURN TILE: {FormatTile(node.TileSetId, node.TileIndex, newRot)}");
+
                     break;
                 }
             }

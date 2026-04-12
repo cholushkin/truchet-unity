@@ -1011,6 +1011,23 @@ MonoBehaviour:
       m_Action: Mode Erase
       m_Flags: 0
     m_Flags: 0
+  _modeTurnAction:
+    m_Name: Mode Turn
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 72935cd0-64a0-45f7-89dc-f554010c00a2
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 0dcc5903-fca5-481a-b5a1-d6d15ee35b93
+      m_Path: <Keyboard>/t
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Mode Turn
+      m_Flags: 0
+    m_Flags: 0
 --- !u!4 &1937141295
 Transform:
   m_ObjectHideFlags: 0

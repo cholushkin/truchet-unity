@@ -30,6 +30,7 @@ namespace Truchet
         [SerializeField] private InputAction _modeSplitAction;
         [SerializeField] private InputAction _modeMergeAction;
         [SerializeField] private InputAction _modeEraseAction;
+        [SerializeField] private InputAction _modeTurnAction;
 
         private IPointerProvider _pointerProvider;
         private InteractionMode _mode = InteractionMode.Random;
@@ -46,13 +47,15 @@ namespace Truchet
             _modeSplitAction.Enable();
             _modeMergeAction.Enable();
             _modeEraseAction.Enable();
-
+            _modeTurnAction.Enable();
+            
             _clickAction.performed += OnClick;
 
             _modeRandomAction.performed += OnRandomMode;
             _modeSplitAction.performed += OnSplitMode;
             _modeMergeAction.performed += OnMergeMode;
             _modeEraseAction.performed += OnEraseMode;
+            _modeTurnAction.performed += OnTurnMode;
         }
 
         private void OnDisable()
@@ -63,12 +66,15 @@ namespace Truchet
             _modeSplitAction.performed -= OnSplitMode;
             _modeMergeAction.performed -= OnMergeMode;
             _modeEraseAction.performed -= OnEraseMode;
+            _modeTurnAction.performed -= OnTurnMode;
+            
 
             _clickAction.Disable();
             _modeRandomAction.Disable();
             _modeSplitAction.Disable();
             _modeMergeAction.Disable();
             _modeEraseAction.Disable();
+            _modeTurnAction.Disable();
         }
 
         private void OnRandomMode(InputAction.CallbackContext ctx)
@@ -93,6 +99,12 @@ namespace Truchet
         {
             _mode = InteractionMode.Erase;
             Debug.Log("[Interaction] Mode = ERASE");
+        }
+        
+        private void OnTurnMode(InputAction.CallbackContext ctx)
+        {
+            _mode = InteractionMode.Turn;
+            Debug.Log("[Interaction] Mode = TURN");
         }
 
         private void OnClick(InputAction.CallbackContext ctx)
