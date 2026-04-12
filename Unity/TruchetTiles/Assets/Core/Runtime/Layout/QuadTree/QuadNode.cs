@@ -16,6 +16,7 @@ namespace Truchet
         public bool IsActive;
 
         public int ChildIndex;
+        public int ParentIndex;
 
         public int TileSetId;
         public int TileIndex;

@@ -620,6 +620,7 @@ MonoBehaviour:
   _height: 16
   _renderBehaviour: {fileID: 1505737614}
   _overlay: {fileID: 1505737613}
+  _serviceTileSet: {fileID: 0}
   RootSeed: 2206731710
 --- !u!4 &1505737612
 Transform:
@@ -879,6 +880,152 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1866000088}
   m_CullTransparentMesh: 1
+--- !u!1 &1937141292
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1937141295}
+  - component: {fileID: 1937141294}
+  - component: {fileID: 1937141293}
+  m_Layer: 0
+  m_Name: TileInteraction
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1937141293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1937141292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e623c387c42fe848a2c9fc8d835c2fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: TruchetTiles::Truchet.UIPointerProvider
+  _targetRect: {fileID: 1866000089}
+  _uiCamera: {fileID: 0}
+--- !u!114 &1937141294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1937141292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32b12724641dd564f842190726aa8dd7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: TruchetTiles::Truchet.TileInteractionController
+  _pointerProviderBehaviour: {fileID: 1937141293}
+  _runtime: {fileID: 1505737611}
+  _clickAction:
+    m_Name: Click
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: b2846adc-c6fb-4c84-aaa0-368caf1a7169
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: b6e380d1-8f93-4668-847c-e127f9565d07
+      m_Path: <Mouse>/leftButton
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Click
+      m_Flags: 0
+    m_Flags: 0
+  _modeRandomAction:
+    m_Name: Mode Random
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 0bb068f2-3d07-4175-95ad-111676932888
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 9b9a5b5c-d709-4945-ae17-173a5a3acd2e
+      m_Path: <Keyboard>/r
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Mode Random
+      m_Flags: 0
+    m_Flags: 0
+  _modeSplitAction:
+    m_Name: Mode Split
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 2e2fb27b-e8e8-442d-8567-35604acbd263
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: ae343cc2-1412-4e6b-9258-d900b178b1e9
+      m_Path: <Keyboard>/s
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Mode Split
+      m_Flags: 0
+    m_Flags: 0
+  _modeMergeAction:
+    m_Name: Mode Merge
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 640c4909-a464-407f-8917-6723295720fd
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 05ac34a4-7a50-410c-b1a0-6805e3b79645
+      m_Path: <Keyboard>/m
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Mode Merge
+      m_Flags: 0
+    m_Flags: 0
+  _modeEraseAction:
+    m_Name: Mode Erase
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: ba89e66a-7adc-4362-8b8b-158c32be84ad
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 5fa64049-92b2-4464-83c2-3cdeea37d8fe
+      m_Path: <Keyboard>/e
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Mode Erase
+      m_Flags: 0
+    m_Flags: 0
+--- !u!4 &1937141295
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1937141292}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.83711, y: 0, z: -2.01296}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -888,3 +1035,4 @@ SceneRoots:
   - {fileID: 1505737612}
   - {fileID: 1504605357}
   - {fileID: 1015074298}
+  - {fileID: 1937141295}

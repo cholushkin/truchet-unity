@@ -27,6 +27,7 @@ namespace Truchet
             public bool IsActive;
 
             public int ChildIndex;
+            public int ParentIndex;
 
             public int TileSetId;
             public int TileIndex;
@@ -46,7 +47,6 @@ namespace Truchet
         public int LogicalWidth => _logicalWidth;
         public int LogicalHeight => _logicalHeight;
 
-
         public int LeafCount
         {
             get
@@ -64,12 +64,7 @@ namespace Truchet
         public bool IsUniformDepth => _isUniformDepth;
         public int UniformDepth => _uniformDepth;
 
-        // --------------------------------------------------
-
-        public QuadTree(
-            float size = 1f,
-            int logicalWidth = 8,
-            int logicalHeight = 8)
+        public QuadTree(float size = 1f, int logicalWidth = 8, int logicalHeight = 8)
         {
             _logicalWidth = logicalWidth;
             _logicalHeight = logicalHeight;
@@ -83,6 +78,7 @@ namespace Truchet
                 IsLeaf = true,
                 IsActive = true,
                 ChildIndex = -1,
+                ParentIndex = -1,
                 TileSetId = -1,
                 TileIndex = -1,
                 Rotation = 0
@@ -90,10 +86,6 @@ namespace Truchet
 
             RecalculateUniformState();
         }
-
-        // --------------------------------------------------
-        // Subdivision
-        // --------------------------------------------------
 
         public void Subdivide(int nodeIndex)
         {
@@ -113,55 +105,48 @@ namespace Truchet
             node.ChildIndex = childStart;
             _nodes[nodeIndex] = node;
 
-            // Canonical order:
-            // 0 = bottom-left
-            // 1 = bottom-right
-            // 2 = top-left
-            // 3 = top-right
-
-            CreateChild(childStart + 0, node, 0f, 0f, half, level);
-            CreateChild(childStart + 1, node, half, 0f, half, level);
-            CreateChild(childStart + 2, node, 0f, half, half, level);
-            CreateChild(childStart + 3, node, half, half, half, level);
+            CreateChild(childStart + 0, node, 0f, 0f, half, level, nodeIndex);
+            CreateChild(childStart + 1, node, half, 0f, half, level, nodeIndex);
+            CreateChild(childStart + 2, node, 0f, half, half, level, nodeIndex);
+            CreateChild(childStart + 3, node, half, half, half, level, nodeIndex);
 
             RecalculateUniformState();
         }
-
+        
         public void Collapse(int nodeIndex)
         {
             ValidateNodeIndex(nodeIndex);
 
             var node = _nodes[nodeIndex];
 
-            if (!node.IsActive || node.IsLeaf)
+            if (!node.IsActive)
                 return;
 
-            int childStart = node.ChildIndex;
-
-            var child0 = _nodes[childStart + 0];
-
-            node.TileSetId = child0.TileSetId;
-            node.TileIndex = child0.TileIndex;
-            node.Rotation = child0.Rotation;
-
-            for (int i = 0; i < 4; i++)
+            if (!node.IsLeaf)
             {
-                int ci = childStart + i;
-                var child = _nodes[ci];
-                child.IsActive = false;
-                _nodes[ci] = child;
-                _freeIndices.Push(ci);
+                int childStart = node.ChildIndex;
+
+                for (int i = 0; i < 4; i++)
+                {
+                    int ci = childStart + i;
+                    Collapse(ci);
+
+                    var child = _nodes[ci];
+                    child.IsActive = false;
+                    _nodes[ci] = child;
+
+                    _freeIndices.Push(ci);
+                }
             }
 
             node.IsLeaf = true;
             node.ChildIndex = -1;
-            _nodes[nodeIndex] = node;
 
-            RecalculateUniformState();
+            _nodes[nodeIndex] = node;
         }
 
         private void CreateChild(int index, QuadNode parent,
-            float offsetX, float offsetY, float size, int level)
+            float offsetX, float offsetY, float size, int level, int parentIndex)
         {
             EnsureNodeCapacity(index);
 
@@ -174,6 +159,7 @@ namespace Truchet
                 IsLeaf = true,
                 IsActive = true,
                 ChildIndex = -1,
+                ParentIndex = parentIndex,
                 TileSetId = parent.TileSetId,
                 TileIndex = parent.TileIndex,
                 Rotation = parent.Rotation
@@ -207,10 +193,6 @@ namespace Truchet
                 _nodes.Add(default);
         }
 
-        // --------------------------------------------------
-        // Hierarchical Interface
-        // --------------------------------------------------
-
         public Truchet.QuadNode GetNode(int nodeIndex)
         {
             ValidateNodeIndex(nodeIndex);
@@ -226,6 +208,7 @@ namespace Truchet
                 IsLeaf = n.IsLeaf,
                 IsActive = n.IsActive,
                 ChildIndex = n.ChildIndex,
+                ParentIndex = n.ParentIndex,
                 TileSetId = n.TileSetId,
                 TileIndex = n.TileIndex,
                 Rotation = n.Rotation
@@ -238,6 +221,34 @@ namespace Truchet
             {
                 if (_nodes[i].IsActive && _nodes[i].IsLeaf)
                     yield return i;
+            }
+        }
+
+        public int FindLeafAt(float u, float v)
+        {
+            int index = 0;
+
+            while (true)
+            {
+                var node = _nodes[index];
+
+                if (!node.IsActive)
+                    return -1;
+
+                if (node.IsLeaf)
+                    return index;
+
+                float half = node.Size * 0.5f;
+
+                bool right = u >= node.X + half;
+                bool top = v >= node.Y + half;
+
+                int childOffset =
+                    (!right && !top) ? 0 :
+                    ( right && !top) ? 1 :
+                    (!right &&  top) ? 2 : 3;
+
+                index = node.ChildIndex + childOffset;
             }
         }
 
@@ -256,10 +267,6 @@ namespace Truchet
 
             _nodes[nodeIndex] = node;
         }
-
-        // --------------------------------------------------
-        // Grid Interface (Uniform Only)
-        // --------------------------------------------------
 
         public int Width
         {
@@ -345,8 +352,6 @@ namespace Truchet
 
             return nodeIndex;
         }
-
-        // --------------------------------------------------
 
         private void RecalculateUniformState()
         {

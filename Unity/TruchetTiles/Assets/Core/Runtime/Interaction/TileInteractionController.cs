@@ -1,78 +1,111 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+
+// TODO: Support rotate current tile
 
 namespace Truchet
 {
+    public interface IPointerProvider
+    {
+        bool TryGetUV(out Vector2 uv);
+    }
+
     public class TileInteractionController : MonoBehaviour
     {
         public enum InteractionMode
         {
             Random,
+            Turn,
             Split,
-            Merge
+            Merge,
+            Erase
         }
 
-        [Header("Input")]
-        [SerializeField] private Camera _camera;
+        [SerializeField] private MonoBehaviour _pointerProviderBehaviour;
+        [SerializeField] private TruchetRuntime _runtime;
 
-        [Header("Target")]
-        [SerializeField] private Collider _targetCollider;
+        [Header("Input Actions")]
+        [SerializeField] private InputAction _clickAction;
+        [SerializeField] private InputAction _modeRandomAction;
+        [SerializeField] private InputAction _modeSplitAction;
+        [SerializeField] private InputAction _modeMergeAction;
+        [SerializeField] private InputAction _modeEraseAction;
 
+        private IPointerProvider _pointerProvider;
         private InteractionMode _mode = InteractionMode.Random;
 
-        private void Update()
+        private void Awake()
         {
-            HandleModeSwitch();
-            HandleClick();
+            _pointerProvider = _pointerProviderBehaviour as IPointerProvider;
         }
 
-        // --------------------------------------------------
-        // Mode Switching
-        // --------------------------------------------------
-
-        private void HandleModeSwitch()
+        private void OnEnable()
         {
-            if (Input.GetKeyDown(KeyCode.M))
-            {
-                _mode = InteractionMode.Merge;
-                Debug.Log("[Interaction] Mode = MERGE");
-            }
+            _clickAction.Enable();
+            _modeRandomAction.Enable();
+            _modeSplitAction.Enable();
+            _modeMergeAction.Enable();
+            _modeEraseAction.Enable();
 
-            if (Input.GetKeyDown(KeyCode.S))
-            {
-                _mode = InteractionMode.Split;
-                Debug.Log("[Interaction] Mode = SPLIT");
-            }
+            _clickAction.performed += OnClick;
 
-            if (Input.GetKeyDown(KeyCode.R))
-            {
-                _mode = InteractionMode.Random;
-                Debug.Log("[Interaction] Mode = RANDOM");
-            }
+            _modeRandomAction.performed += OnRandomMode;
+            _modeSplitAction.performed += OnSplitMode;
+            _modeMergeAction.performed += OnMergeMode;
+            _modeEraseAction.performed += OnEraseMode;
         }
 
-        // --------------------------------------------------
-        // Click Handling
-        // --------------------------------------------------
-
-        private void HandleClick()
+        private void OnDisable()
         {
-            if (!Input.GetMouseButtonDown(0))
+            _clickAction.performed -= OnClick;
+
+            _modeRandomAction.performed -= OnRandomMode;
+            _modeSplitAction.performed -= OnSplitMode;
+            _modeMergeAction.performed -= OnMergeMode;
+            _modeEraseAction.performed -= OnEraseMode;
+
+            _clickAction.Disable();
+            _modeRandomAction.Disable();
+            _modeSplitAction.Disable();
+            _modeMergeAction.Disable();
+            _modeEraseAction.Disable();
+        }
+
+        private void OnRandomMode(InputAction.CallbackContext ctx)
+        {
+            _mode = InteractionMode.Random;
+            Debug.Log("[Interaction] Mode = RANDOM");
+        }
+
+        private void OnSplitMode(InputAction.CallbackContext ctx)
+        {
+            _mode = InteractionMode.Split;
+            Debug.Log("[Interaction] Mode = SPLIT");
+        }
+
+        private void OnMergeMode(InputAction.CallbackContext ctx)
+        {
+            _mode = InteractionMode.Merge;
+            Debug.Log("[Interaction] Mode = MERGE");
+        }
+
+        private void OnEraseMode(InputAction.CallbackContext ctx)
+        {
+            _mode = InteractionMode.Erase;
+            Debug.Log("[Interaction] Mode = ERASE");
+        }
+
+        private void OnClick(InputAction.CallbackContext ctx)
+        {
+            if (_pointerProvider == null)
                 return;
 
-            if (_camera == null || _targetCollider == null)
+            if (!_pointerProvider.TryGetUV(out var uv))
                 return;
 
-            Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+            //Debug.Log($"[Interaction] Click UV = {uv} | Mode = {_mode}");
 
-            if (Physics.Raycast(ray, out RaycastHit hit))
-            {
-                if (hit.collider != _targetCollider)
-                    return;
-
-                Vector2 uv = hit.textureCoord;
-
-                Debug.Log($"[Interaction] Click UV = {uv} | Mode = {_mode}");
-            }
+            _runtime?.ModifyAtUV(uv, _mode);
         }
     }
 }
