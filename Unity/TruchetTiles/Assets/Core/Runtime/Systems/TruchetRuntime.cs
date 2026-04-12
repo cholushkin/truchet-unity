@@ -31,8 +31,7 @@ namespace Truchet
 
         [SerializeField] private TileSet _serviceTileSet;
 
-        [AddRandomizeButton]
-        public uint RootSeed;
+        [AddRandomizeButton] public uint RootSeed;
 
         private Random _rng;
 
@@ -43,6 +42,13 @@ namespace Truchet
         private List<TileInstance> _instances;
 
         public TileSet[] TileSets => _tileSets;
+
+        // =========================
+        // STATE FLAGS
+        // =========================
+
+        public bool IsGrid => _gridLayout != null;
+        public bool IsQuadTree => _hierarchicalLayout != null;
 
         private void Start()
         {
@@ -91,6 +97,130 @@ namespace Truchet
 
             RebuildComposition();
         }
+
+        // ============================================================
+        // 🟦 STATE: GRID
+        // ============================================================
+
+        public GridSnapshot CaptureGrid()
+        {
+            var grid = (IGridLayout)_gridLayout;
+
+            int w = grid.Width;
+            int h = grid.Height;
+
+            var tiles = new PackedTile[w * h];
+
+            int i = 0;
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    var cell = grid.GetCell(x, y);
+                    tiles[i++] = PackedTile.Encode(
+                        cell.TileSetId,
+                        cell.TileIndex,
+                        cell.Rotation);
+                }
+            }
+
+            return new GridSnapshot
+            {
+                Width = (ushort)w,
+                Height = (ushort)h,
+                Tiles = tiles
+            };
+        }
+
+        public void ApplyGrid(GridSnapshot snapshot)
+        {
+            var grid = new RegularGrid(snapshot.Width, snapshot.Height);
+
+            _gridLayout = grid;
+            _hierarchicalLayout = null;
+
+            int i = 0;
+
+            for (int y = 0; y < snapshot.Height; y++)
+            {
+                for (int x = 0; x < snapshot.Width; x++)
+                {
+                    snapshot.Tiles[i++].Decode(out int setId, out int tileIndex, out int rot);
+
+                    grid.SetTile(x, y, setId, tileIndex, rot);
+                }
+            }
+        }
+
+        // ============================================================
+        // 🟩 STATE: QUADTREE (FULL)
+        // ============================================================
+
+        public QuadTreeSnapshot CaptureSnapshot()
+        {
+            var quad = (QuadTree)_hierarchicalLayout;
+
+            return QuadTreeSnapshotSerializer.Capture(
+                0,
+                node => !quad.GetNode(node).IsLeaf,
+                node => quad.GetNode(node).ChildIndex,
+                node =>
+                {
+                    var n = quad.GetNode(node);
+                    return (n.TileSetId, n.TileIndex, n.Rotation);
+                });
+        }
+
+        public void ApplySnapshot(QuadTreeSnapshot snapshot)
+        {
+            var quad = new QuadTree(1f, _width, _height);
+
+            _hierarchicalLayout = quad;
+            _gridLayout = null;
+
+            QuadTreeSnapshotSerializer.Apply(
+                snapshot,
+                reset: () => { },
+                createRoot: () => 0,
+                subdivide: quad.Subdivide,
+                firstChild: node => quad.GetNode(node).ChildIndex,
+                setTile: (node, setId, tileIndex, rot) =>
+                    quad.SetTileByNode(node, setId, tileIndex, rot));
+        }
+
+        // ============================================================
+        // 🟨 STATE: STRUCTURE ONLY (QUADTREE)
+        // ============================================================
+
+        public QuadTreeStructureSnapshot CaptureStructure()
+        {
+            var quad = (QuadTree)_hierarchicalLayout;
+
+            return QuadTreeStructureSerializer.Capture(
+                0,
+                node => !quad.GetNode(node).IsLeaf,
+                node => quad.GetNode(node).ChildIndex);
+        }
+
+        public void ApplyStructure(QuadTreeStructureSnapshot snapshot)
+        {
+            var quad = new QuadTree(1f, _width, _height);
+
+            _hierarchicalLayout = quad;
+            _gridLayout = null;
+
+            QuadTreeStructureSerializer.Apply(
+                snapshot,
+                reset: () => { },
+                createRoot: () => 0,
+                subdivide: quad.Subdivide,
+                firstChild: node => quad.GetNode(node).ChildIndex);
+        }
+
+        // ============================================================
+        // EXISTING INTERACTION
+        // ============================================================
 
         public void ModifyAtUV(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
@@ -152,7 +282,7 @@ namespace Truchet
                 _gridLayout.SetTile(x, y, 0, 0, 0);
                 Debug.Log($"ERASE TILE: {FormatTile(0, 0, 0)}");
             }
-            
+
             if (mode == TileInteractionController.InteractionMode.Turn)
             {
                 var cell = _gridLayout.GetCell(x, y);
@@ -225,7 +355,7 @@ namespace Truchet
                     Debug.Log($"ERASE TILE: {FormatTile(0, 0, 0)}");
                     break;
                 }
-                
+
                 case TileInteractionController.InteractionMode.Turn:
                 {
                     var node = quad.GetNode(nodeIndex);
@@ -244,7 +374,7 @@ namespace Truchet
             }
         }
 
-        private void RebuildComposition()
+        public void RebuildComposition()
         {
             if (_gridLayout != null)
                 _instances = InstanceComposition.Build(_gridLayout, _tileSets);

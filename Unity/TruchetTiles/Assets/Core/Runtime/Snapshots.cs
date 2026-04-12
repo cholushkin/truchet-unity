@@ -1,0 +1,378 @@
+using System;
+using System.Collections.Generic;
+
+// ======================================================
+// PACKED TILE (16-bit)
+// ======================================================
+
+public struct PackedTile
+{
+    public ushort Data;
+
+    public static PackedTile Encode(int setId, int tileIndex, int rot)
+    {
+        ushort data = 0;
+
+        data |= (ushort)(setId & 0x1F);
+        data |= (ushort)((tileIndex & 0x3F) << 5);
+        data |= (ushort)((rot & 0x3) << 11);
+
+        return new PackedTile { Data = data };
+    }
+
+    public void Decode(out int setId, out int tileIndex, out int rot)
+    {
+        setId = Data & 0x1F;
+        tileIndex = (Data >> 5) & 0x3F;
+        rot = (Data >> 11) & 0x3;
+    }
+}
+
+// ======================================================
+// GRID SNAPSHOT
+// ======================================================
+
+public struct GridSnapshot
+{
+    public ushort Width;
+    public ushort Height;
+    public PackedTile[] Tiles;
+}
+
+// ======================================================
+// QUADTREE SNAPSHOT (FULL)
+// ======================================================
+
+public struct QuadNodeSnapshot
+{
+    public ushort Data;
+}
+
+public struct QuadTreeSnapshot
+{
+    public QuadNodeSnapshot[] Nodes;
+}
+
+// ======================================================
+// QUADTREE STRUCTURE ONLY
+// ======================================================
+
+public struct QuadTreeStructureSnapshot
+{
+    public byte[] Data;
+    public int BitCount;
+}
+
+// ======================================================
+// BIT WRITER
+// ======================================================
+
+internal class BitWriter
+{
+    private byte[] _data;
+    private int _bitIndex;
+
+    public BitWriter(int capacity = 128)
+    {
+        _data = new byte[capacity];
+    }
+
+    public void Write(bool bit)
+    {
+        int byteIndex = _bitIndex >> 3;
+        int bitOffset = _bitIndex & 7;
+
+        if (byteIndex >= _data.Length)
+            Array.Resize(ref _data, _data.Length * 2);
+
+        if (bit)
+            _data[byteIndex] |= (byte)(1 << bitOffset);
+
+        _bitIndex++;
+    }
+
+    public QuadTreeStructureSnapshot ToSnapshot()
+    {
+        int byteCount = (_bitIndex + 7) >> 3;
+
+        var result = new byte[byteCount];
+        Array.Copy(_data, result, byteCount);
+
+        return new QuadTreeStructureSnapshot
+        {
+            Data = result,
+            BitCount = _bitIndex
+        };
+    }
+}
+
+// ======================================================
+// BIT READER
+// ======================================================
+
+internal struct BitReader
+{
+    private readonly byte[] _data;
+    private readonly int _bitCount;
+    private int _bitIndex;
+
+    public BitReader(byte[] data, int bitCount)
+    {
+        _data = data;
+        _bitCount = bitCount;
+        _bitIndex = 0;
+    }
+
+    public bool Read()
+    {
+        if (_bitIndex >= _bitCount)
+            throw new Exception("BitReader overflow");
+
+        int byteIndex = _bitIndex >> 3;
+        int bitOffset = _bitIndex & 7;
+
+        bool value = (_data[byteIndex] & (1 << bitOffset)) != 0;
+
+        _bitIndex++;
+        return value;
+    }
+}
+
+// ======================================================
+// GRID SERIALIZER
+// ======================================================
+
+public static class GridSnapshotSerializer
+{
+    public static byte[] Serialize(GridSnapshot grid)
+    {
+        int count = grid.Width * grid.Height;
+
+        byte[] bytes = new byte[4 + count * 2];
+
+        bytes[0] = (byte)(grid.Width);
+        bytes[1] = (byte)(grid.Width >> 8);
+        bytes[2] = (byte)(grid.Height);
+        bytes[3] = (byte)(grid.Height >> 8);
+
+        int offset = 4;
+
+        for (int i = 0; i < count; i++)
+        {
+            ushort d = grid.Tiles[i].Data;
+
+            bytes[offset++] = (byte)d;
+            bytes[offset++] = (byte)(d >> 8);
+        }
+
+        return bytes;
+    }
+
+    public static GridSnapshot Deserialize(byte[] bytes)
+    {
+        ushort width  = (ushort)(bytes[0] | (bytes[1] << 8));
+        ushort height = (ushort)(bytes[2] | (bytes[3] << 8));
+
+        int count = width * height;
+
+        var tiles = new PackedTile[count];
+
+        int offset = 4;
+
+        for (int i = 0; i < count; i++)
+        {
+            ushort d = (ushort)(bytes[offset] | (bytes[offset + 1] << 8));
+            tiles[i] = new PackedTile { Data = d };
+            offset += 2;
+        }
+
+        return new GridSnapshot
+        {
+            Width = width,
+            Height = height,
+            Tiles = tiles
+        };
+    }
+}
+
+// ======================================================
+// QUADTREE NODE PACKING
+// ======================================================
+
+public static class QuadNodeCodec
+{
+    public static QuadNodeSnapshot Encode(bool hasChildren, PackedTile tile)
+    {
+        ushort data = 0;
+
+        if (hasChildren)
+            data |= 1;
+
+        data |= (ushort)(tile.Data << 1);
+
+        return new QuadNodeSnapshot { Data = data };
+    }
+
+    public static void Decode(QuadNodeSnapshot node, out bool hasChildren, out PackedTile tile)
+    {
+        hasChildren = (node.Data & 1) != 0;
+
+        tile = new PackedTile
+        {
+            Data = (ushort)(node.Data >> 1)
+        };
+    }
+}
+
+// ======================================================
+// QUADTREE SERIALIZER (DFS)
+// ======================================================
+
+public static class QuadTreeSnapshotSerializer
+{
+    // Requires adapter functions to avoid coupling
+
+    public static QuadTreeSnapshot Capture(
+        int rootNode,
+        Func<int, bool> hasChildren,
+        Func<int, int> firstChild,
+        Func<int, (int setId, int tileIndex, int rot)> getTile)
+    {
+        var nodes = new List<QuadNodeSnapshot>();
+
+        void Traverse(int nodeIndex)
+        {
+            bool split = hasChildren(nodeIndex);
+
+            var t = getTile(nodeIndex);
+            var packed = PackedTile.Encode(t.setId, t.tileIndex, t.rot);
+
+            nodes.Add(QuadNodeCodec.Encode(split, packed));
+
+            if (split)
+            {
+                int c = firstChild(nodeIndex);
+
+                Traverse(c + 0);
+                Traverse(c + 1);
+                Traverse(c + 2);
+                Traverse(c + 3);
+            }
+        }
+
+        Traverse(rootNode);
+
+        return new QuadTreeSnapshot
+        {
+            Nodes = nodes.ToArray()
+        };
+    }
+
+    public static void Apply(
+        QuadTreeSnapshot snapshot,
+        Action reset,
+        Func<int> createRoot,
+        Action<int> subdivide,
+        Func<int, int> firstChild,
+        Action<int, int, int, int> setTile)
+    {
+        int index = 0;
+
+        reset();
+
+        int root = createRoot();
+
+        void Traverse(int nodeIndex)
+        {
+            var node = snapshot.Nodes[index++];
+
+            QuadNodeCodec.Decode(node, out bool split, out PackedTile tile);
+
+            tile.Decode(out int setId, out int tileIndex, out int rot);
+            setTile(nodeIndex, setId, tileIndex, rot);
+
+            if (split)
+            {
+                subdivide(nodeIndex);
+
+                int c = firstChild(nodeIndex);
+
+                Traverse(c + 0);
+                Traverse(c + 1);
+                Traverse(c + 2);
+                Traverse(c + 3);
+            }
+        }
+
+        Traverse(root);
+    }
+}
+
+// ======================================================
+// STRUCTURE SERIALIZER
+// ======================================================
+
+public static class QuadTreeStructureSerializer
+{
+    public static QuadTreeStructureSnapshot Capture(
+        int rootNode,
+        Func<int, bool> hasChildren,
+        Func<int, int> firstChild)
+    {
+        var writer = new BitWriter();
+
+        void Traverse(int nodeIndex)
+        {
+            bool split = hasChildren(nodeIndex);
+
+            writer.Write(split);
+
+            if (split)
+            {
+                int c = firstChild(nodeIndex);
+
+                Traverse(c + 0);
+                Traverse(c + 1);
+                Traverse(c + 2);
+                Traverse(c + 3);
+            }
+        }
+
+        Traverse(rootNode);
+
+        return writer.ToSnapshot();
+    }
+
+    public static void Apply(
+        QuadTreeStructureSnapshot snapshot,
+        Action reset,
+        Func<int> createRoot,
+        Action<int> subdivide,
+        Func<int, int> firstChild)
+    {
+        var reader = new BitReader(snapshot.Data, snapshot.BitCount);
+
+        reset();
+
+        int root = createRoot();
+
+        void Traverse(int nodeIndex)
+        {
+            bool split = reader.Read();
+
+            if (split)
+            {
+                subdivide(nodeIndex);
+
+                int c = firstChild(nodeIndex);
+
+                Traverse(c + 0);
+                Traverse(c + 1);
+                Traverse(c + 2);
+                Traverse(c + 3);
+            }
+        }
+
+        Traverse(root);
+    }
+}
