@@ -3,10 +3,6 @@ using UnityEngine;
 
 public class TilemapStateController : MonoBehaviour
 {
-    // =========================
-    // TYPE
-    // =========================
-
     private enum StateType : byte
     {
         None = 0,
@@ -16,10 +12,6 @@ public class TilemapStateController : MonoBehaviour
 
     [SerializeField] private StateType _type;
 
-    // =========================
-    // STORED DATA
-    // =========================
-
     [SerializeField] private byte[] _fullData;
     [SerializeField] private byte[] _structureData;
 
@@ -27,8 +19,13 @@ public class TilemapStateController : MonoBehaviour
     private QuadTreeSnapshot _quad;
     private QuadTreeStructureSnapshot _structure;
 
+    public bool HasState()
+    {
+        return _fullData != null && _fullData.Length > 0;
+    }
+
     // =========================
-    // CAPTURE FULL
+    // CAPTURE
     // =========================
 
     public void Capture(TruchetRuntime runtime)
@@ -37,20 +34,22 @@ public class TilemapStateController : MonoBehaviour
         {
             _type = StateType.Grid;
 
-            _grid = runtime.CaptureGrid();
+            var grid = runtime.GetGridLayout();
+            _grid = CaptureGrid(grid);
             _fullData = GridSnapshotSerializer.Serialize(_grid);
         }
-        else
+        else if (runtime.IsQuadTree)
         {
             _type = StateType.QuadTree;
 
-            _quad = runtime.CaptureSnapshot();
+            var quad = (QuadTree)runtime.GetHierarchicalLayout();
+            _quad = CaptureQuad(quad);
             _fullData = SerializeQuad(_quad);
         }
     }
 
     // =========================
-    // APPLY FULL
+    // APPLY
     // =========================
 
     public void Apply(TruchetRuntime runtime)
@@ -60,69 +59,115 @@ public class TilemapStateController : MonoBehaviour
             if (_grid.Tiles == null || _grid.Tiles.Length == 0)
                 _grid = GridSnapshotSerializer.Deserialize(_fullData);
 
-            runtime.ApplyGrid(_grid);
+            var grid = ApplyGrid(_grid);
+            runtime.SetGridLayout(grid);
         }
         else if (_type == StateType.QuadTree)
         {
             if (_quad.Nodes == null || _quad.Nodes.Length == 0)
                 _quad = DeserializeQuad(_fullData);
 
-            runtime.ApplySnapshot(_quad);
+            var quad = ApplyQuad(_quad, runtime);
+            runtime.SetHierarchicalLayout(quad);
         }
 
         runtime.RebuildComposition();
     }
 
     // =========================
-    // CAPTURE STRUCTURE (QT ONLY)
+    // GRID
     // =========================
 
-    public void CaptureStructure(TruchetRuntime runtime)
+    private GridSnapshot CaptureGrid(IGridLayout grid)
     {
-        if (!runtime.IsQuadTree)
-            return;
+        int w = grid.Width;
+        int h = grid.Height;
 
-        _structure = runtime.CaptureStructure();
-        _structureData = SerializeStructure(_structure);
+        var tiles = new PackedTile[w * h];
+
+        int i = 0;
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                var cell = grid.GetCell(x, y);
+                tiles[i++] = PackedTile.Encode(
+                    cell.TileSetId,
+                    cell.TileIndex,
+                    cell.Rotation);
+            }
+        }
+
+        return new GridSnapshot
+        {
+            Width = (ushort)w,
+            Height = (ushort)h,
+            Tiles = tiles
+        };
+    }
+
+    private RegularGrid ApplyGrid(GridSnapshot snapshot)
+    {
+        var grid = new RegularGrid(snapshot.Width, snapshot.Height);
+
+        int i = 0;
+
+        for (int y = 0; y < snapshot.Height; y++)
+        {
+            for (int x = 0; x < snapshot.Width; x++)
+            {
+                snapshot.Tiles[i++].Decode(out int setId, out int tileIndex, out int rot);
+                grid.SetTile(x, y, setId, tileIndex, rot);
+            }
+        }
+
+        return grid;
     }
 
     // =========================
-    // APPLY STRUCTURE (QT ONLY)
+    // QUADTREE
     // =========================
 
-    public void ApplyStructure(TruchetRuntime runtime)
+    private QuadTreeSnapshot CaptureQuad(QuadTree quad)
     {
-        if (!runtime.IsQuadTree)
-            return;
+        return QuadTreeSnapshotSerializer.Capture(
+            0,
+            node => !quad.GetNode(node).IsLeaf,
+            node => quad.GetNode(node).ChildIndex,
+            node =>
+            {
+                var n = quad.GetNode(node);
+                return (n.TileSetId, n.TileIndex, n.Rotation);
+            });
+    }
 
-        if (_structure.Data == null || _structure.Data.Length == 0)
-            _structure = DeserializeStructure(_structureData);
+    private QuadTree ApplyQuad(QuadTreeSnapshot snapshot, TruchetRuntime runtime)
+    {
+        var quad = new QuadTree(1f, 8, 8);
 
-        runtime.ApplyStructure(_structure);
-        runtime.RebuildComposition();
+        QuadTreeSnapshotSerializer.Apply(
+            snapshot,
+            reset: () => { },
+            createRoot: () => 0,
+            subdivide: quad.Subdivide,
+            firstChild: node => quad.GetNode(node).ChildIndex,
+            setTile: (node, setId, tileIndex, rot) =>
+                quad.SetTileByNode(node, setId, tileIndex, rot));
+
+        return quad;
     }
 
     // =========================
-    // PROVIDE STRUCTURE (for modifiers)
-    // =========================
-
-    public QuadTreeStructureSnapshot GetStructure()
-    {
-        if (_structure.Data == null && _structureData != null)
-            _structure = DeserializeStructure(_structureData);
-
-        return _structure;
-    }
-
-    // =========================
-    // QUAD FULL SERIALIZATION
+    // SERIALIZATION (QUAD)
     // =========================
 
     private byte[] SerializeQuad(QuadTreeSnapshot snapshot)
     {
         int count = snapshot.Nodes.Length;
 
-        byte[] bytes = new byte[4 + count * 2];
+        const int NODE_SIZE = 2;
+        byte[] bytes = new byte[4 + count * NODE_SIZE];
 
         bytes[0] = (byte)count;
         bytes[1] = (byte)(count >> 8);
@@ -164,8 +209,16 @@ public class TilemapStateController : MonoBehaviour
     }
 
     // =========================
-    // STRUCTURE SERIALIZATION
+    // STRUCTURE (NOT USED YET)
     // =========================
+
+    public QuadTreeStructureSnapshot GetStructure()
+    {
+        if (_structure.Data == null && _structureData != null)
+            _structure = DeserializeStructure(_structureData);
+
+        return _structure;
+    }
 
     private byte[] SerializeStructure(QuadTreeStructureSnapshot snapshot)
     {

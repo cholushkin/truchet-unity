@@ -1,3 +1,11 @@
+using UnityEngine;
+using System.Collections.Generic;
+using GameLib.Random;
+using NaughtyAttributes;
+using UnityEngine.Serialization;
+using Random = GameLib.Random.Random;
+
+
 // TODO: add patch system (seed + overrides)
 // TODO: add brush tools (radius editing)
 // TODO: add multi-layer tile support
@@ -6,11 +14,6 @@
 // TODO: add tile weighting / probabilities
 // TODO: add debug visualization for quad depth
 
-using UnityEngine;
-using System.Collections.Generic;
-using GameLib.Random;
-using NaughtyAttributes;
-using Random = GameLib.Random.Random;
 
 namespace Truchet
 {
@@ -30,7 +33,6 @@ namespace Truchet
         [SerializeField] private CellRenderDbgOverlay _overlay;
 
         [SerializeField] private TileSet _serviceTileSet;
-
         [AddRandomizeButton] public uint RootSeed;
 
         private Random _rng;
@@ -40,15 +42,28 @@ namespace Truchet
 
         private TileSet[] _tileSets;
         private List<TileInstance> _instances;
+        
+        public TilemapStateController StateController;
 
         public TileSet[] TileSets => _tileSets;
 
-        // =========================
-        // STATE FLAGS
-        // =========================
-
         public bool IsGrid => _gridLayout != null;
         public bool IsQuadTree => _hierarchicalLayout != null;
+
+        public IGridLayout GetGridLayout() => _gridLayout;
+        public IHierarchicalLayout GetHierarchicalLayout() => _hierarchicalLayout;
+
+        public void SetGridLayout(IGridLayout grid)
+        {
+            _gridLayout = grid;
+            _hierarchicalLayout = null;
+        }
+
+        public void SetHierarchicalLayout(IHierarchicalLayout layout)
+        {
+            _hierarchicalLayout = layout;
+            _gridLayout = null;
+        }
 
         private void Start()
         {
@@ -58,6 +73,12 @@ namespace Truchet
         [Button]
         public void Generate()
         {
+            if (StateController != null && StateController.HasState())
+            {
+                StateController.Apply(this);
+                return;
+            }
+
             _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
 
             if (_layoutMode == LayoutMode.RegularGrid)
@@ -70,8 +91,7 @@ namespace Truchet
         {
             var map = new RegularGrid(_width, _height);
 
-            _gridLayout = map;
-            _hierarchicalLayout = null;
+            SetGridLayout(map);
 
             var (tileSets, modifiers) = CollectModifiers();
             _tileSets = tileSets;
@@ -86,8 +106,7 @@ namespace Truchet
         {
             var map = new QuadTree(1f, _width, _height);
 
-            _hierarchicalLayout = map;
-            _gridLayout = null;
+            SetHierarchicalLayout(map);
 
             var (tileSets, modifiers) = CollectModifiers();
             _tileSets = tileSets;
@@ -97,130 +116,6 @@ namespace Truchet
 
             RebuildComposition();
         }
-
-        // ============================================================
-        // 🟦 STATE: GRID
-        // ============================================================
-
-        public GridSnapshot CaptureGrid()
-        {
-            var grid = (IGridLayout)_gridLayout;
-
-            int w = grid.Width;
-            int h = grid.Height;
-
-            var tiles = new PackedTile[w * h];
-
-            int i = 0;
-
-            for (int y = 0; y < h; y++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    var cell = grid.GetCell(x, y);
-                    tiles[i++] = PackedTile.Encode(
-                        cell.TileSetId,
-                        cell.TileIndex,
-                        cell.Rotation);
-                }
-            }
-
-            return new GridSnapshot
-            {
-                Width = (ushort)w,
-                Height = (ushort)h,
-                Tiles = tiles
-            };
-        }
-
-        public void ApplyGrid(GridSnapshot snapshot)
-        {
-            var grid = new RegularGrid(snapshot.Width, snapshot.Height);
-
-            _gridLayout = grid;
-            _hierarchicalLayout = null;
-
-            int i = 0;
-
-            for (int y = 0; y < snapshot.Height; y++)
-            {
-                for (int x = 0; x < snapshot.Width; x++)
-                {
-                    snapshot.Tiles[i++].Decode(out int setId, out int tileIndex, out int rot);
-
-                    grid.SetTile(x, y, setId, tileIndex, rot);
-                }
-            }
-        }
-
-        // ============================================================
-        // 🟩 STATE: QUADTREE (FULL)
-        // ============================================================
-
-        public QuadTreeSnapshot CaptureSnapshot()
-        {
-            var quad = (QuadTree)_hierarchicalLayout;
-
-            return QuadTreeSnapshotSerializer.Capture(
-                0,
-                node => !quad.GetNode(node).IsLeaf,
-                node => quad.GetNode(node).ChildIndex,
-                node =>
-                {
-                    var n = quad.GetNode(node);
-                    return (n.TileSetId, n.TileIndex, n.Rotation);
-                });
-        }
-
-        public void ApplySnapshot(QuadTreeSnapshot snapshot)
-        {
-            var quad = new QuadTree(1f, _width, _height);
-
-            _hierarchicalLayout = quad;
-            _gridLayout = null;
-
-            QuadTreeSnapshotSerializer.Apply(
-                snapshot,
-                reset: () => { },
-                createRoot: () => 0,
-                subdivide: quad.Subdivide,
-                firstChild: node => quad.GetNode(node).ChildIndex,
-                setTile: (node, setId, tileIndex, rot) =>
-                    quad.SetTileByNode(node, setId, tileIndex, rot));
-        }
-
-        // ============================================================
-        // 🟨 STATE: STRUCTURE ONLY (QUADTREE)
-        // ============================================================
-
-        public QuadTreeStructureSnapshot CaptureStructure()
-        {
-            var quad = (QuadTree)_hierarchicalLayout;
-
-            return QuadTreeStructureSerializer.Capture(
-                0,
-                node => !quad.GetNode(node).IsLeaf,
-                node => quad.GetNode(node).ChildIndex);
-        }
-
-        public void ApplyStructure(QuadTreeStructureSnapshot snapshot)
-        {
-            var quad = new QuadTree(1f, _width, _height);
-
-            _hierarchicalLayout = quad;
-            _gridLayout = null;
-
-            QuadTreeStructureSerializer.Apply(
-                snapshot,
-                reset: () => { },
-                createRoot: () => 0,
-                subdivide: quad.Subdivide,
-                firstChild: node => quad.GetNode(node).ChildIndex);
-        }
-
-        // ============================================================
-        // EXISTING INTERACTION
-        // ============================================================
 
         public void ModifyAtUV(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
@@ -263,11 +158,17 @@ namespace Truchet
 
         private void ModifyGrid(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
-            int x = Mathf.FloorToInt(uv.x * _gridLayout.Width);
-            int y = Mathf.FloorToInt(uv.y * _gridLayout.Height);
+            // ✅ FIX: clamp UV to avoid edge overflow
+            uv.x = Mathf.Clamp01(uv.x);
+            uv.y = Mathf.Clamp01(uv.y);
+
+            int x = Mathf.Min(Mathf.FloorToInt(uv.x * _gridLayout.Width), _gridLayout.Width - 1);
+            int y = Mathf.Min(Mathf.FloorToInt(uv.y * _gridLayout.Height), _gridLayout.Height - 1);
 
             if (!_gridLayout.IsValid(x, y))
                 return;
+
+            Debug.Log($"[ModifyGrid] UV={uv} → Cell=({x},{y})");
 
             if (mode == TileInteractionController.InteractionMode.Random)
             {

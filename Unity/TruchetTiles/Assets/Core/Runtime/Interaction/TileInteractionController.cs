@@ -1,13 +1,11 @@
+using NaughtyAttributes;
 using UnityEngine;
-using UnityEngine.InputSystem;
-
-// TODO: Support rotate current tile
 
 namespace Truchet
 {
     public interface IPointerProvider
     {
-        bool TryGetUV(out Vector2 uv);
+        bool TryGetUV(Vector2 screenPos, out Vector2 uv);
     }
 
     public class TileInteractionController : MonoBehaviour
@@ -23,101 +21,69 @@ namespace Truchet
 
         [SerializeField] private MonoBehaviour _pointerProviderBehaviour;
         [SerializeField] private TruchetRuntime _runtime;
+        [SerializeField] private InteractionMode _mode = InteractionMode.Random;
 
-        [Header("Input Actions")]
-        [SerializeField] private InputAction _clickAction;
-        [SerializeField] private InputAction _modeRandomAction;
-        [SerializeField] private InputAction _modeSplitAction;
-        [SerializeField] private InputAction _modeMergeAction;
-        [SerializeField] private InputAction _modeEraseAction;
-        [SerializeField] private InputAction _modeTurnAction;
+        [SerializeField] private bool _editingEnabled;
 
         private IPointerProvider _pointerProvider;
-        private InteractionMode _mode = InteractionMode.Random;
+        private bool _lastEditingState;
+
+        public TruchetRuntime Runtime => _runtime;
+        public IPointerProvider Pointer => _pointerProvider;
+        public InteractionMode Mode => _mode;
+        public bool EditingEnabled => _editingEnabled;
 
         private void Awake()
         {
+            ResolvePointer();
+            _lastEditingState = _editingEnabled;
+        }
+
+        private void OnValidate()
+        {
+            ResolvePointer();
+
+            if (_lastEditingState != _editingEnabled)
+            {
+                Debug.Log($"[Interaction] Edit Mode = {(_editingEnabled ? "ENABLED" : "DISABLED")}");
+                _lastEditingState = _editingEnabled;
+            }
+        }
+
+        private void ResolvePointer()
+        {
             _pointerProvider = _pointerProviderBehaviour as IPointerProvider;
+
+            if (_pointerProviderBehaviour != null && _pointerProvider == null)
+            {
+                Debug.LogError($"{_pointerProviderBehaviour.name} does not implement IPointerProvider", this);
+            }
         }
 
-        private void OnEnable()
+        public void ApplyAtUV(Vector2 uv)
         {
-            _clickAction.Enable();
-            _modeRandomAction.Enable();
-            _modeSplitAction.Enable();
-            _modeMergeAction.Enable();
-            _modeEraseAction.Enable();
-            _modeTurnAction.Enable();
-            
-            _clickAction.performed += OnClick;
-
-            _modeRandomAction.performed += OnRandomMode;
-            _modeSplitAction.performed += OnSplitMode;
-            _modeMergeAction.performed += OnMergeMode;
-            _modeEraseAction.performed += OnEraseMode;
-            _modeTurnAction.performed += OnTurnMode;
+            _runtime?.ModifyAtUV(uv, _mode);
         }
 
-        private void OnDisable()
+        public void SetMode(InteractionMode mode)
         {
-            _clickAction.performed -= OnClick;
+            if (_mode == mode)
+                return;
 
-            _modeRandomAction.performed -= OnRandomMode;
-            _modeSplitAction.performed -= OnSplitMode;
-            _modeMergeAction.performed -= OnMergeMode;
-            _modeEraseAction.performed -= OnEraseMode;
-            _modeTurnAction.performed -= OnTurnMode;
-            
-
-            _clickAction.Disable();
-            _modeRandomAction.Disable();
-            _modeSplitAction.Disable();
-            _modeMergeAction.Disable();
-            _modeEraseAction.Disable();
-            _modeTurnAction.Disable();
-        }
-
-        private void OnRandomMode(InputAction.CallbackContext ctx)
-        {
-            _mode = InteractionMode.Random;
-            Debug.Log("[Interaction] Mode = RANDOM");
-        }
-
-        private void OnSplitMode(InputAction.CallbackContext ctx)
-        {
-            _mode = InteractionMode.Split;
-            Debug.Log("[Interaction] Mode = SPLIT");
-        }
-
-        private void OnMergeMode(InputAction.CallbackContext ctx)
-        {
-            _mode = InteractionMode.Merge;
-            Debug.Log("[Interaction] Mode = MERGE");
-        }
-
-        private void OnEraseMode(InputAction.CallbackContext ctx)
-        {
-            _mode = InteractionMode.Erase;
-            Debug.Log("[Interaction] Mode = ERASE");
+            _mode = mode;
+            Debug.Log($"[Interaction] Mode = {mode.ToString().ToUpper()}");
         }
         
-        private void OnTurnMode(InputAction.CallbackContext ctx)
+        public void SetEditingEnabled(bool enabled)
         {
-            _mode = InteractionMode.Turn;
-            Debug.Log("[Interaction] Mode = TURN");
+            _editingEnabled = enabled;
+            Debug.Log($"[Interaction] Edit Mode = {(enabled ? "ENABLED" : "DISABLED")}");
         }
 
-        private void OnClick(InputAction.CallbackContext ctx)
+        [Button]
+        public void BakeState()
         {
-            if (_pointerProvider == null)
-                return;
-
-            if (!_pointerProvider.TryGetUV(out var uv))
-                return;
-
-            //Debug.Log($"[Interaction] Click UV = {uv} | Mode = {_mode}");
-
-            _runtime?.ModifyAtUV(uv, _mode);
+            _runtime?.StateController?.Capture(_runtime);
         }
     }
 }

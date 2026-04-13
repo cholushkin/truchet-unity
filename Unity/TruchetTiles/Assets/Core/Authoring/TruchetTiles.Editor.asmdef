@@ -1,0 +1,20 @@
+{
+    "name": "Truchet.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:cec6ca78d9ef46a4480a4891fd7a52db",
+        "GUID:4143da2b3a3bfee48ba461e736422b9c",
+        "GUID:e374adf4b521a744cbe1f65144dbb05a"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
