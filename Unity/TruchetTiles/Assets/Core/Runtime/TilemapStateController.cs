@@ -12,21 +12,27 @@ public class TilemapStateController : MonoBehaviour
 
     [SerializeField] private StateType _type;
 
+    // FULL SNAPSHOT (tiles + structure)
     [SerializeField] private byte[] _fullData;
+
+    // STRUCTURE ONLY (quadtree)
     [SerializeField] private byte[] _structureData;
 
+    // Cached runtime snapshots
     private GridSnapshot _grid;
     private QuadTreeSnapshot _quad;
     private QuadTreeStructureSnapshot _structure;
 
-    public bool HasState()
-    {
-        return _fullData != null && _fullData.Length > 0;
-    }
+    // =====================================================
+    // PUBLIC API
+    // =====================================================
 
-    // =========================
+    public bool HasState() => _fullData != null && _fullData.Length > 0;
+    public bool HasStructure() => _structureData != null && _structureData.Length > 0;
+
+    // =====================================================
     // CAPTURE
-    // =========================
+    // =====================================================
 
     public void Capture(TruchetRuntime runtime)
     {
@@ -35,7 +41,8 @@ public class TilemapStateController : MonoBehaviour
             _type = StateType.Grid;
 
             var grid = runtime.GetGridLayout();
-            _grid = CaptureGrid(grid);
+            _grid = CaptureGrid(grid, runtime.RootSeed);
+
             _fullData = GridSnapshotSerializer.Serialize(_grid);
         }
         else if (runtime.IsQuadTree)
@@ -43,14 +50,39 @@ public class TilemapStateController : MonoBehaviour
             _type = StateType.QuadTree;
 
             var quad = (QuadTree)runtime.GetHierarchicalLayout();
-            _quad = CaptureQuad(quad);
+
+            _quad = CaptureQuad(quad, runtime.RootSeed);
             _fullData = SerializeQuad(_quad);
         }
     }
 
-    // =========================
+    // 🆕 STRUCTURE ONLY
+    public void CaptureStructure(TruchetRuntime runtime)
+    {
+        if (!runtime.IsQuadTree)
+        {
+            Debug.LogWarning("[State] Structure snapshot only valid for QuadTree.");
+            return;
+        }
+
+        var quad = (QuadTree)runtime.GetHierarchicalLayout();
+
+        _structure = QuadTreeStructureSerializer.Capture(
+            0,
+            node => !quad.GetNode(node).IsLeaf,
+            node => quad.GetNode(node).ChildIndex
+        );
+
+        _structureData = SerializeStructure(_structure);
+
+        _type = StateType.QuadTree;
+
+        Debug.Log("[State] QuadTree STRUCTURE captured.");
+    }
+
+    // =====================================================
     // APPLY
-    // =========================
+    // =====================================================
 
     public void Apply(TruchetRuntime runtime)
     {
@@ -58,6 +90,9 @@ public class TilemapStateController : MonoBehaviour
         {
             if (_grid.Tiles == null || _grid.Tiles.Length == 0)
                 _grid = GridSnapshotSerializer.Deserialize(_fullData);
+
+            runtime.RootSeed = _grid.Seed;
+            runtime.ReinitRng();
 
             var grid = ApplyGrid(_grid);
             runtime.SetGridLayout(grid);
@@ -67,18 +102,58 @@ public class TilemapStateController : MonoBehaviour
             if (_quad.Nodes == null || _quad.Nodes.Length == 0)
                 _quad = DeserializeQuad(_fullData);
 
-            var quad = ApplyQuad(_quad, runtime);
+            runtime.RootSeed = _quad.Seed;
+            runtime.ReinitRng();
+
+            var quad = ApplyQuad(_quad);
             runtime.SetHierarchicalLayout(quad);
         }
 
         runtime.RebuildComposition();
     }
 
-    // =========================
-    // GRID
-    // =========================
+    // 🆕 APPLY STRUCTURE ONLY
+    public void ApplyStructure(TruchetRuntime runtime)
+    {
+        if (_type != StateType.QuadTree)
+        {
+            Debug.LogWarning("[State] No QuadTree structure available.");
+            return;
+        }
 
-    private GridSnapshot CaptureGrid(IGridLayout grid)
+        if (_structure.Data == null || _structure.Data.Length == 0)
+            _structure = DeserializeStructure(_structureData);
+
+        runtime.ReinitRng();
+
+        var quad = new QuadTree(1f, runtime.GetGridLayout()?.Width ?? 8, runtime.GetGridLayout()?.Height ?? 8);
+
+        QuadTreeStructureSerializer.Apply(
+            _structure,
+            reset: () => { },
+            createRoot: () => 0,
+            subdivide: quad.Subdivide,
+            firstChild: node => quad.GetNode(node).ChildIndex
+        );
+
+        // 🔥 fill tiles randomly after structure restore
+        foreach (int node in quad.GetLeafIndices())
+        {
+            var (setId, tileIndex, rot) = runtime.GetRandomTileForState();
+            quad.SetTileByNode(node, setId, tileIndex, rot);
+        }
+
+        runtime.SetHierarchicalLayout(quad);
+        runtime.RebuildComposition();
+
+        Debug.Log("[State] QuadTree STRUCTURE applied.");
+    }
+
+    // =====================================================
+    // GRID
+    // =====================================================
+
+    private GridSnapshot CaptureGrid(IGridLayout grid, uint seed)
     {
         int w = grid.Width;
         int h = grid.Height;
@@ -92,10 +167,11 @@ public class TilemapStateController : MonoBehaviour
             for (int x = 0; x < w; x++)
             {
                 var cell = grid.GetCell(x, y);
-                tiles[i++] = PackedTile.Encode(
-                    cell.TileSetId,
-                    cell.TileIndex,
-                    cell.Rotation);
+
+                int setId = Mathf.Max(0, cell.TileSetId);
+                int tileIndex = Mathf.Max(0, cell.TileIndex);
+
+                tiles[i++] = PackedTile.Encode(setId, tileIndex, cell.Rotation);
             }
         }
 
@@ -103,7 +179,8 @@ public class TilemapStateController : MonoBehaviour
         {
             Width = (ushort)w,
             Height = (ushort)h,
-            Tiles = tiles
+            Tiles = tiles,
+            Seed = seed
         };
     }
 
@@ -125,13 +202,13 @@ public class TilemapStateController : MonoBehaviour
         return grid;
     }
 
-    // =========================
-    // QUADTREE
-    // =========================
+    // =====================================================
+    // QUADTREE (FULL)
+    // =====================================================
 
-    private QuadTreeSnapshot CaptureQuad(QuadTree quad)
+    private QuadTreeSnapshot CaptureQuad(QuadTree quad, uint seed)
     {
-        return QuadTreeSnapshotSerializer.Capture(
+        var snap = QuadTreeSnapshotSerializer.Capture(
             0,
             node => !quad.GetNode(node).IsLeaf,
             node => quad.GetNode(node).ChildIndex,
@@ -140,11 +217,20 @@ public class TilemapStateController : MonoBehaviour
                 var n = quad.GetNode(node);
                 return (n.TileSetId, n.TileIndex, n.Rotation);
             });
+
+        snap.LogicalWidth = quad.LogicalWidth;
+        snap.LogicalHeight = quad.LogicalHeight;
+        snap.Seed = seed;
+
+        return snap;
     }
 
-    private QuadTree ApplyQuad(QuadTreeSnapshot snapshot, TruchetRuntime runtime)
+    private QuadTree ApplyQuad(QuadTreeSnapshot snapshot)
     {
-        var quad = new QuadTree(1f, 8, 8);
+        var quad = new QuadTree(
+            1f,
+            snapshot.LogicalWidth,
+            snapshot.LogicalHeight);
 
         QuadTreeSnapshotSerializer.Apply(
             snapshot,
@@ -158,23 +244,23 @@ public class TilemapStateController : MonoBehaviour
         return quad;
     }
 
-    // =========================
-    // SERIALIZATION (QUAD)
-    // =========================
+    // =====================================================
+    // SERIALIZATION (QUAD FULL)
+    // =====================================================
 
     private byte[] SerializeQuad(QuadTreeSnapshot snapshot)
     {
         int count = snapshot.Nodes.Length;
 
-        const int NODE_SIZE = 2;
-        byte[] bytes = new byte[4 + count * NODE_SIZE];
+        byte[] bytes = new byte[16 + count * 2];
 
-        bytes[0] = (byte)count;
-        bytes[1] = (byte)(count >> 8);
-        bytes[2] = (byte)(count >> 16);
-        bytes[3] = (byte)(count >> 24);
+        // header
+        System.Buffer.BlockCopy(System.BitConverter.GetBytes(count), 0, bytes, 0, 4);
+        System.Buffer.BlockCopy(System.BitConverter.GetBytes(snapshot.LogicalWidth), 0, bytes, 4, 4);
+        System.Buffer.BlockCopy(System.BitConverter.GetBytes(snapshot.LogicalHeight), 0, bytes, 8, 4);
+        System.Buffer.BlockCopy(System.BitConverter.GetBytes(snapshot.Seed), 0, bytes, 12, 4);
 
-        int offset = 4;
+        int offset = 16;
 
         for (int i = 0; i < count; i++)
         {
@@ -188,15 +274,14 @@ public class TilemapStateController : MonoBehaviour
 
     private QuadTreeSnapshot DeserializeQuad(byte[] bytes)
     {
-        int count =
-            bytes[0] |
-            (bytes[1] << 8) |
-            (bytes[2] << 16) |
-            (bytes[3] << 24);
+        int count = System.BitConverter.ToInt32(bytes, 0);
+        int w = System.BitConverter.ToInt32(bytes, 4);
+        int h = System.BitConverter.ToInt32(bytes, 8);
+        uint seed = System.BitConverter.ToUInt32(bytes, 12);
 
         var nodes = new QuadNodeSnapshot[count];
 
-        int offset = 4;
+        int offset = 16;
 
         for (int i = 0; i < count; i++)
         {
@@ -205,20 +290,18 @@ public class TilemapStateController : MonoBehaviour
             offset += 2;
         }
 
-        return new QuadTreeSnapshot { Nodes = nodes };
+        return new QuadTreeSnapshot
+        {
+            Nodes = nodes,
+            LogicalWidth = w,
+            LogicalHeight = h,
+            Seed = seed
+        };
     }
 
-    // =========================
-    // STRUCTURE (NOT USED YET)
-    // =========================
-
-    public QuadTreeStructureSnapshot GetStructure()
-    {
-        if (_structure.Data == null && _structureData != null)
-            _structure = DeserializeStructure(_structureData);
-
-        return _structure;
-    }
+    // =====================================================
+    // STRUCTURE SERIALIZATION
+    // =====================================================
 
     private byte[] SerializeStructure(QuadTreeStructureSnapshot snapshot)
     {
@@ -226,30 +309,20 @@ public class TilemapStateController : MonoBehaviour
 
         byte[] bytes = new byte[4 + byteCount];
 
-        int bits = snapshot.BitCount;
-
-        bytes[0] = (byte)bits;
-        bytes[1] = (byte)(bits >> 8);
-        bytes[2] = (byte)(bits >> 16);
-        bytes[3] = (byte)(bits >> 24);
-
-        System.Array.Copy(snapshot.Data, 0, bytes, 4, byteCount);
+        System.Buffer.BlockCopy(System.BitConverter.GetBytes(snapshot.BitCount), 0, bytes, 0, 4);
+        System.Buffer.BlockCopy(snapshot.Data, 0, bytes, 4, byteCount);
 
         return bytes;
     }
 
     private QuadTreeStructureSnapshot DeserializeStructure(byte[] bytes)
     {
-        int bits =
-            bytes[0] |
-            (bytes[1] << 8) |
-            (bytes[2] << 16) |
-            (bytes[3] << 24);
+        int bits = System.BitConverter.ToInt32(bytes, 0);
 
         int byteCount = bytes.Length - 4;
-
         var data = new byte[byteCount];
-        System.Array.Copy(bytes, 4, data, 0, byteCount);
+
+        System.Buffer.BlockCopy(bytes, 4, data, 0, byteCount);
 
         return new QuadTreeStructureSnapshot
         {

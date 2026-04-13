@@ -79,11 +79,15 @@ namespace Truchet
             _editingEnabled = enabled;
             Debug.Log($"[Interaction] Edit Mode = {(enabled ? "ENABLED" : "DISABLED")}");
         }
-
-        [Button]
+        
         public void BakeState()
         {
             _runtime?.StateController?.Capture(_runtime);
+        }
+
+        public void BakeStructure()
+        {
+            _runtime?.StateController?.CaptureStructure(_runtime);
         }
     }
 }

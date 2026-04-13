@@ -86,6 +86,16 @@ namespace Truchet
             else
                 GenerateQuadTree(_rng);
         }
+        
+        public void ReinitRng()
+        {
+            _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
+        }
+
+        public (int setId, int tileIndex, int rot) GetRandomTileForState()
+        {
+            return GetRandomTile();
+        }
 
         private void GenerateRegularGrid(Random rng)
         {

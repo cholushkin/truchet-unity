@@ -127,6 +127,11 @@ namespace Truchet
                 controller.BakeState();
             }
 
+            if (GUILayout.Button("Bake Structure", GUILayout.Height(24)))
+            {
+                controller.BakeStructure();
+            }
+
             GUILayout.EndHorizontal();
 
             GUILayout.EndArea();

@@ -37,6 +37,9 @@ public struct GridSnapshot
     public ushort Width;
     public ushort Height;
     public PackedTile[] Tiles;
+
+ 
+    public uint Seed;
 }
 
 // ======================================================
@@ -51,6 +54,9 @@ public struct QuadNodeSnapshot
 public struct QuadTreeSnapshot
 {
     public QuadNodeSnapshot[] Nodes;
+    public int LogicalWidth;
+    public int LogicalHeight;
+    public uint Seed;
 }
 
 // ======================================================
@@ -148,19 +154,23 @@ public static class GridSnapshotSerializer
     {
         int count = grid.Width * grid.Height;
 
-        byte[] bytes = new byte[4 + count * 2];
+        byte[] bytes = new byte[8 + count * 2];
 
         bytes[0] = (byte)(grid.Width);
         bytes[1] = (byte)(grid.Width >> 8);
         bytes[2] = (byte)(grid.Height);
         bytes[3] = (byte)(grid.Height >> 8);
 
-        int offset = 4;
+        bytes[4] = (byte)(grid.Seed);
+        bytes[5] = (byte)(grid.Seed >> 8);
+        bytes[6] = (byte)(grid.Seed >> 16);
+        bytes[7] = (byte)(grid.Seed >> 24);
+
+        int offset = 8;
 
         for (int i = 0; i < count; i++)
         {
             ushort d = grid.Tiles[i].Data;
-
             bytes[offset++] = (byte)d;
             bytes[offset++] = (byte)(d >> 8);
         }
@@ -173,11 +183,17 @@ public static class GridSnapshotSerializer
         ushort width  = (ushort)(bytes[0] | (bytes[1] << 8));
         ushort height = (ushort)(bytes[2] | (bytes[3] << 8));
 
+        uint seed =
+            (uint)(bytes[4] |
+                   (bytes[5] << 8) |
+                   (bytes[6] << 16) |
+                   (bytes[7] << 24));
+
         int count = width * height;
 
         var tiles = new PackedTile[count];
 
-        int offset = 4;
+        int offset = 8;
 
         for (int i = 0; i < count; i++)
         {
@@ -190,7 +206,8 @@ public static class GridSnapshotSerializer
         {
             Width = width,
             Height = height,
-            Tiles = tiles
+            Tiles = tiles,
+            Seed = seed
         };
     }
 }
