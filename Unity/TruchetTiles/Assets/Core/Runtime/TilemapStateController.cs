@@ -112,7 +112,7 @@ public class TilemapStateController : MonoBehaviour
         runtime.RebuildComposition();
     }
 
-    // 🆕 APPLY STRUCTURE ONLY
+    // 🆕 APPLY STRUCTURE ONLY (UPDATED PIPELINE)
     public void ApplyStructure(TruchetRuntime runtime)
     {
         if (_type != StateType.QuadTree)
@@ -124,10 +124,19 @@ public class TilemapStateController : MonoBehaviour
         if (_structure.Data == null || _structure.Data.Length == 0)
             _structure = DeserializeStructure(_structureData);
 
+        // --------------------------------------------------
+        // RNG (tile phase only)
+        // --------------------------------------------------
         runtime.ReinitRng();
 
-        var quad = new QuadTree(1f, runtime.GetGridLayout()?.Width ?? 8, runtime.GetGridLayout()?.Height ?? 8);
+        // --------------------------------------------------
+        // Build empty QuadTree using runtime config
+        // --------------------------------------------------
+        var quad = new QuadTree(1f, runtime.Width, runtime.Height);
 
+        // --------------------------------------------------
+        // Apply structure (topology only)
+        // --------------------------------------------------
         QuadTreeStructureSerializer.Apply(
             _structure,
             reset: () => { },
@@ -136,13 +145,14 @@ public class TilemapStateController : MonoBehaviour
             firstChild: node => quad.GetNode(node).ChildIndex
         );
 
-        // 🔥 fill tiles randomly after structure restore
-        foreach (int node in quad.GetLeafIndices())
-        {
-            var (setId, tileIndex, rot) = runtime.GetRandomTileForState();
-            quad.SetTileByNode(node, setId, tileIndex, rot);
-        }
+        // --------------------------------------------------
+        // Fill tiles (NEW: decoupled phase)
+        // --------------------------------------------------
+        runtime.FillTiles(quad);
 
+        // --------------------------------------------------
+        // Apply to runtime
+        // --------------------------------------------------
         runtime.SetHierarchicalLayout(quad);
         runtime.RebuildComposition();
 
@@ -254,7 +264,6 @@ public class TilemapStateController : MonoBehaviour
 
         byte[] bytes = new byte[16 + count * 2];
 
-        // header
         System.Buffer.BlockCopy(System.BitConverter.GetBytes(count), 0, bytes, 0, 4);
         System.Buffer.BlockCopy(System.BitConverter.GetBytes(snapshot.LogicalWidth), 0, bytes, 4, 4);
         System.Buffer.BlockCopy(System.BitConverter.GetBytes(snapshot.LogicalHeight), 0, bytes, 8, 4);

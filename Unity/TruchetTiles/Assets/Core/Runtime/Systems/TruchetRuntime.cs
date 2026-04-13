@@ -13,6 +13,11 @@ using Random = GameLib.Random.Random;
 // TODO: add undo/redo system
 // TODO: add tile weighting / probabilities
 // TODO: add debug visualization for quad depth
+// TODO: split modifiers into structure vs tile passes
+// TODO: add deterministic tile-only generation mode (no structure rebuild)
+// TODO: add seed animation / timeline system
+// TODO: add partial regeneration (tiles only)
+// TODO: add rule-based tile placement system
 
 
 namespace Truchet
@@ -42,13 +47,16 @@ namespace Truchet
 
         private TileSet[] _tileSets;
         private List<TileInstance> _instances;
-        
+
         public TilemapStateController StateController;
 
         public TileSet[] TileSets => _tileSets;
 
         public bool IsGrid => _gridLayout != null;
         public bool IsQuadTree => _hierarchicalLayout != null;
+
+        public int Width => _width;
+        public int Height => _height;
 
         public IGridLayout GetGridLayout() => _gridLayout;
         public IHierarchicalLayout GetHierarchicalLayout() => _hierarchicalLayout;
@@ -70,32 +78,115 @@ namespace Truchet
             Generate();
         }
 
+        // =====================================================
+        // GENERATION ENTRY
+        // =====================================================
+
         [Button]
         public void Generate()
         {
+            Debug.Log("--------------------------------------------------");
+
+            // --------------------------------------------------
+            // 1. FULL STATE (tiles + structure)
+            // --------------------------------------------------
             if (StateController != null && StateController.HasState())
             {
+                Debug.Log(
+                    $"[Truchet] GENERATE → FULL STATE RESTORE\n" +
+                    $"Seed: {RootSeed}\n" +
+                    $"Mode: Snapshot (structure + tiles)"
+                );
+
                 StateController.Apply(this);
                 return;
             }
 
+            // --------------------------------------------------
+            // 2. STRUCTURE ONLY (baked topology)
+            // --------------------------------------------------
+            if (StateController != null && StateController.HasStructure())
+            {
+                Debug.Log(
+                    $"[Truchet] GENERATE → STRUCTURE + TILE SEED\n" +
+                    $"Seed: {RootSeed}\n" +
+                    $"Mode: Baked Structure (tiles randomized only)"
+                );
+
+                StateController.ApplyStructure(this);
+                return;
+            }
+
+            // --------------------------------------------------
+            // 3. FULL PROCEDURAL
+            // --------------------------------------------------
+            Debug.Log(
+                $"[Truchet] GENERATE → FULL PROCEDURAL\n" +
+                $"Seed: {RootSeed}\n" +
+                $"Mode: Seed drives structure + tiles"
+            );
+
             _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
 
             if (_layoutMode == LayoutMode.RegularGrid)
+            {
+                Debug.Log($"[Truchet] Layout: RegularGrid ({_width}x{_height})");
                 GenerateRegularGrid(_rng);
+            }
             else
+            {
+                Debug.Log($"[Truchet] Layout: QuadTree ({_width}x{_height})");
                 GenerateQuadTree(_rng);
+            }
         }
-        
+
         public void ReinitRng()
         {
             _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
+        }
+
+        // =====================================================
+        // TILE GENERATION (DECOUPLED PHASE)
+        // =====================================================
+
+        public void FillTiles(IHierarchicalLayout layout)
+        {
+            if (layout == null)
+                return;
+
+            var quad = layout as QuadTree;
+            if (quad == null)
+                return;
+
+            foreach (int node in quad.GetLeafIndices())
+            {
+                var (setId, tileIndex, rot) = GetRandomTile();
+                quad.SetTileByNode(node, setId, tileIndex, rot);
+            }
         }
 
         public (int setId, int tileIndex, int rot) GetRandomTileForState()
         {
             return GetRandomTile();
         }
+
+        private (int setId, int tileIndex, int rot) GetRandomTile()
+        {
+            int setId = _rng.Range(0, _tileSets.Length);
+            var set = _tileSets[setId];
+
+            if (set.tiles == null || set.tiles.Length == 0)
+                return (0, 0, 0);
+
+            int tileIndex = _rng.Range(0, set.tiles.Length);
+            int rot = _rng.Range(0, 4);
+
+            return (setId, tileIndex, rot);
+        }
+
+        // =====================================================
+        // GENERATION MODES
+        // =====================================================
 
         private void GenerateRegularGrid(Random rng)
         {
@@ -127,6 +218,10 @@ namespace Truchet
             RebuildComposition();
         }
 
+        // =====================================================
+        // INTERACTION
+        // =====================================================
+
         public void ModifyAtUV(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
             if (_gridLayout != null)
@@ -135,20 +230,6 @@ namespace Truchet
                 ModifyQuadTree(uv, mode);
 
             RebuildComposition();
-        }
-
-        private (int setId, int tileIndex, int rot) GetRandomTile()
-        {
-            int setId = _rng.Range(0, _tileSets.Length);
-            var set = _tileSets[setId];
-
-            if (set.tiles == null || set.tiles.Length == 0)
-                return (0, 0, 0);
-
-            int tileIndex = _rng.Range(0, set.tiles.Length);
-            int rot = _rng.Range(0, 4);
-
-            return (setId, tileIndex, rot);
         }
 
         private string FormatTile(int setId, int tileIndex, int rot)
@@ -168,7 +249,6 @@ namespace Truchet
 
         private void ModifyGrid(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
-            // ✅ FIX: clamp UV to avoid edge overflow
             uv.x = Mathf.Clamp01(uv.x);
             uv.y = Mathf.Clamp01(uv.y);
 
@@ -178,31 +258,22 @@ namespace Truchet
             if (!_gridLayout.IsValid(x, y))
                 return;
 
-            Debug.Log($"[ModifyGrid] UV={uv} → Cell=({x},{y})");
-
             if (mode == TileInteractionController.InteractionMode.Random)
             {
                 var (setId, tileIndex, rot) = GetRandomTile();
                 _gridLayout.SetTile(x, y, setId, tileIndex, rot);
-
-                Debug.Log($"RND TILE: {FormatTile(setId, tileIndex, rot)}");
             }
 
             if (mode == TileInteractionController.InteractionMode.Erase)
             {
                 _gridLayout.SetTile(x, y, 0, 0, 0);
-                Debug.Log($"ERASE TILE: {FormatTile(0, 0, 0)}");
             }
 
             if (mode == TileInteractionController.InteractionMode.Turn)
             {
                 var cell = _gridLayout.GetCell(x, y);
-
                 int newRot = (cell.Rotation + 1) & 3;
-
                 _gridLayout.SetTile(x, y, cell.TileSetId, cell.TileIndex, newRot);
-
-                Debug.Log($"TURN TILE: {FormatTile(cell.TileSetId, cell.TileIndex, newRot)}");
             }
         }
 
@@ -217,10 +288,8 @@ namespace Truchet
             switch (mode)
             {
                 case TileInteractionController.InteractionMode.Random:
-                {
                     SetRandomNode(quad, nodeIndex);
                     break;
-                }
 
                 case TileInteractionController.InteractionMode.Split:
                 {
@@ -229,61 +298,43 @@ namespace Truchet
                     var parent = quad.GetNode(nodeIndex);
                     int childStart = parent.ChildIndex;
 
-                    string log = "SPLIT TILE: ";
-
                     for (int i = 0; i < 4; i++)
-                    {
-                        var (setId, tileIndex, rot) = SetRandomNode(quad, childStart + i);
-                        log += FormatTile(setId, tileIndex, rot) + " ";
-                    }
+                        SetRandomNode(quad, childStart + i);
 
-                    Debug.Log(log);
                     break;
                 }
 
                 case TileInteractionController.InteractionMode.Merge:
                 {
                     var node = quad.GetNode(nodeIndex);
-
-                    if (node.ParentIndex < 0)
-                        return;
+                    if (node.ParentIndex < 0) return;
 
                     int parentIndex = node.ParentIndex;
-
                     quad.Collapse(parentIndex);
 
-                    var (setId, tileIndex, rot) = GetRandomTile();
-                    quad.SetTileByNode(parentIndex, setId, tileIndex, rot);
-
-                    Debug.Log($"MERGE TILE: {FormatTile(setId, tileIndex, rot)}");
-
+                    SetRandomNode(quad, parentIndex);
                     break;
                 }
 
                 case TileInteractionController.InteractionMode.Erase:
-                {
                     quad.SetTileByNode(nodeIndex, 0, 0, 0);
-                    Debug.Log($"ERASE TILE: {FormatTile(0, 0, 0)}");
                     break;
-                }
 
                 case TileInteractionController.InteractionMode.Turn:
                 {
                     var node = quad.GetNode(nodeIndex);
-
-                    if (!node.IsLeaf)
-                        return;
+                    if (!node.IsLeaf) return;
 
                     int newRot = (node.Rotation + 1) & 3;
-
                     quad.SetTileByNode(nodeIndex, node.TileSetId, node.TileIndex, newRot);
-
-                    Debug.Log($"TURN TILE: {FormatTile(node.TileSetId, node.TileIndex, newRot)}");
-
                     break;
                 }
             }
         }
+
+        // =====================================================
+        // COMPOSITION
+        // =====================================================
 
         public void RebuildComposition()
         {
@@ -302,6 +353,10 @@ namespace Truchet
             if (_overlay != null)
                 _overlay.SetData(instances);
         }
+
+        // =====================================================
+        // MODIFIERS
+        // =====================================================
 
         private (TileSet[], LayoutModifier[]) CollectModifiers()
         {
