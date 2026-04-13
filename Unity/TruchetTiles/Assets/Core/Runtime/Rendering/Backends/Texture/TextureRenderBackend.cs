@@ -362,7 +362,7 @@ namespace Truchet
             if (_output == null || _output.width != resolution || _output.height != resolution)
             {
                 _output = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
-                _output.filterMode = FilterMode.Point;
+                _output.filterMode = FilterMode.Bilinear;
             }
         }
 
