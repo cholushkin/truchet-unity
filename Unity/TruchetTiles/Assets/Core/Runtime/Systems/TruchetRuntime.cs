@@ -139,6 +139,39 @@ namespace Truchet
                 GenerateQuadTree(_rng);
             }
         }
+        
+        [Button("Dump QuadTree")]
+        public void DumpQuadTree()
+        {
+            Debug.Log("--------------------------------------------------");
+
+            if (_hierarchicalLayout == null)
+            {
+                Debug.LogWarning("[Truchet] DumpQuadTree → No hierarchical layout present.");
+                return;
+            }
+
+            var quad = _hierarchicalLayout as QuadTree;
+
+            if (quad == null)
+            {
+                Debug.LogWarning("[Truchet] DumpQuadTree → Current layout is not a QuadTree.");
+                return;
+            }
+
+            if (quad.NodeCount == 0)
+            {
+                Debug.LogWarning("[Truchet] DumpQuadTree → QuadTree has no nodes.");
+                return;
+            }
+
+            Debug.Log(
+                $"[Truchet] DumpQuadTree → Nodes: {quad.NodeCount}, Leafs: {quad.LeafCount}, " +
+                $"Uniform: {quad.IsUniformDepth}, Depth: {quad.UniformDepth}"
+            );
+
+            quad.DebugPrintTree();
+        }
 
         public void ReinitRng()
         {

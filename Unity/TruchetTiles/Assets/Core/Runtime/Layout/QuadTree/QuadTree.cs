@@ -35,8 +35,9 @@ namespace Truchet
         }
 
         private readonly List<QuadNode> _nodes = new List<QuadNode>();
-        private readonly Stack<int> _freeIndices = new Stack<int>();
-        
+
+        private readonly Stack<int> _freeBlocks = new Stack<int>();
+
         private readonly int _logicalWidth;
         private readonly int _logicalHeight;
 
@@ -63,6 +64,8 @@ namespace Truchet
 
         public bool IsUniformDepth => _isUniformDepth;
         public int UniformDepth => _uniformDepth;
+
+        public int FreeBlockCount => _freeBlocks.Count;
 
         public QuadTree(float size = 1f, int logicalWidth = 8, int logicalHeight = 8)
         {
@@ -112,7 +115,7 @@ namespace Truchet
 
             RecalculateUniformState();
         }
-        
+
         public void Collapse(int nodeIndex)
         {
             ValidateNodeIndex(nodeIndex);
@@ -126,6 +129,7 @@ namespace Truchet
             {
                 int childStart = node.ChildIndex;
 
+                // collapse children first
                 for (int i = 0; i < 4; i++)
                 {
                     int ci = childStart + i;
@@ -134,9 +138,10 @@ namespace Truchet
                     var child = _nodes[ci];
                     child.IsActive = false;
                     _nodes[ci] = child;
-
-                    _freeIndices.Push(ci);
                 }
+
+                // ✅ FIX: return whole block
+                _freeBlocks.Push(childStart);
             }
 
             node.IsLeaf = true;
@@ -168,22 +173,16 @@ namespace Truchet
 
         private int AllocateChildBlock()
         {
-            if (_freeIndices.Count >= 4)
-            {
-                int a = _freeIndices.Pop();
-                int b = _freeIndices.Pop();
-                int c = _freeIndices.Pop();
-                int d = _freeIndices.Pop();
-
-                int min = Math.Min(Math.Min(a, b), Math.Min(c, d));
-                return min;
-            }
+            if (_freeBlocks.Count > 0)
+                return _freeBlocks.Pop();
 
             int start = _nodes.Count;
+
             _nodes.Add(default);
             _nodes.Add(default);
             _nodes.Add(default);
             _nodes.Add(default);
+
             return start;
         }
 
@@ -388,6 +387,36 @@ namespace Truchet
         {
             if (index < 0 || index >= _nodes.Count)
                 throw new ArgumentOutOfRangeException(nameof(index));
+        }
+
+        public void DebugPrintTree()
+        {
+            DebugPrintNode(0, "");
+        }
+
+        private void DebugPrintNode(int index, string indent)
+        {
+            if (index < 0 || index >= _nodes.Count)
+                return;
+
+            var n = _nodes[index];
+
+            if (!n.IsActive)
+                return;
+
+            string type = n.IsLeaf ? "Leaf" : "Node";
+
+            UnityEngine.Debug.Log(
+                $"{indent}[{index}] {type} | L{n.Level} | Pos({n.X:F2},{n.Y:F2}) | Size {n.Size:F2} | Child:{n.ChildIndex} | Parent:{n.ParentIndex}"
+            );
+
+            if (!n.IsLeaf && n.ChildIndex >= 0)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    DebugPrintNode(n.ChildIndex + i, indent + "  ");
+                }
+            }
         }
     }
 }
