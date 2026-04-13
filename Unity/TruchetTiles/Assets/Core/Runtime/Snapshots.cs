@@ -13,8 +13,11 @@ public struct PackedTile
     {
         ushort data = 0;
 
-        data |= (ushort)(setId & 0x1F);
-        data |= (ushort)((tileIndex & 0x3F) << 5);
+        int safeSet = setId < 0 ? 31 : setId;
+        int safeTile = tileIndex < 0 ? 63 : tileIndex;
+
+        data |= (ushort)(safeSet & 0x1F);
+        data |= (ushort)((safeTile & 0x3F) << 5);
         data |= (ushort)((rot & 0x3) << 11);
 
         return new PackedTile { Data = data };
@@ -22,9 +25,12 @@ public struct PackedTile
 
     public void Decode(out int setId, out int tileIndex, out int rot)
     {
-        setId = Data & 0x1F;
+        setId = (Data & 0x1F);
         tileIndex = (Data >> 5) & 0x3F;
         rot = (Data >> 11) & 0x3;
+
+        if (setId == 31) setId = -1;
+        if (tileIndex == 63) tileIndex = -1;
     }
 }
 

@@ -82,8 +82,8 @@ namespace Truchet
                 IsActive = true,
                 ChildIndex = -1,
                 ParentIndex = -1,
-                TileSetId = 0,
-                TileIndex = 0,
+                TileSetId = -1,
+                TileIndex = -1,
                 Rotation = 0
             });
 

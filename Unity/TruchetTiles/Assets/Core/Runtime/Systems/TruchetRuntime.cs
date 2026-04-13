@@ -37,7 +37,6 @@ namespace Truchet
         [SerializeField] private TruchetRenderBehaviour _renderBehaviour;
         [SerializeField] private CellRenderDbgOverlay _overlay;
 
-        [SerializeField] private TileSet _serviceTileSet;
         [AddRandomizeButton] public uint RootSeed;
 
         private Random _rng;
@@ -299,7 +298,7 @@ namespace Truchet
 
             if (mode == TileInteractionController.InteractionMode.Erase)
             {
-                _gridLayout.SetTile(x, y, 0, 0, 0);
+                _gridLayout.SetTile(x, y, -1, -1, 0);
             }
 
             if (mode == TileInteractionController.InteractionMode.Turn)
@@ -350,7 +349,7 @@ namespace Truchet
                 }
 
                 case TileInteractionController.InteractionMode.Erase:
-                    quad.SetTileByNode(nodeIndex, 0, 0, 0);
+                    quad.SetTileByNode(nodeIndex, -1, -1, 0);
                     break;
 
                 case TileInteractionController.InteractionMode.Turn:
@@ -396,9 +395,6 @@ namespace Truchet
             LayoutModifier[] modifiers = GetComponents<LayoutModifier>();
 
             List<TileSet> tileSets = new List<TileSet>();
-
-            if (_serviceTileSet != null)
-                tileSets.Add(_serviceTileSet);
 
             foreach (var mod in modifiers)
             {

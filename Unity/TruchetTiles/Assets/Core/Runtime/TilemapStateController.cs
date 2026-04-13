@@ -178,8 +178,8 @@ public class TilemapStateController : MonoBehaviour
             {
                 var cell = grid.GetCell(x, y);
 
-                int setId = Mathf.Max(0, cell.TileSetId);
-                int tileIndex = Mathf.Max(0, cell.TileIndex);
+                int setId = cell.TileSetId;
+                int tileIndex = cell.TileIndex;
 
                 tiles[i++] = PackedTile.Encode(setId, tileIndex, cell.Rotation);
             }
