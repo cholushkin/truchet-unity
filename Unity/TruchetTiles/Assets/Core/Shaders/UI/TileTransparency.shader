@@ -1,16 +1,12 @@
-Shader "Truchet/UI/Tilemap"
+Shader "Custom/TileThreeColor_URP"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
 
-        // Choose which color is transparent
-        // (0,0,0) = black transparent
-        // (1,1,1) = white transparent
-        _TransparentColor ("Transparent Color", Color) = (1,1,1,1)
-
-        // Final rendered color
-        _TintColor ("Tint Color", Color) = (0,0,0,1)
+        _ColorA ("Color A (black)", Color) = (0,0,0,1)
+        _ColorB ("Color B (white)", Color) = (1,1,1,1)
+        _Background ("Background", Color) = (1,1,1,1)
     }
 
     SubShader
@@ -20,15 +16,11 @@ Shader "Truchet/UI/Tilemap"
             "RenderType"="Transparent"
             "Queue"="Transparent"
             "RenderPipeline"="UniversalPipeline"
-            "IgnoreProjector"="True"
         }
 
         Pass
         {
-            Name "UI"
-            Tags { "LightMode"="UniversalForward" }
-
-            // Standard alpha blending (no premultiply needed anymore)
+            Name "Forward"
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
             Cull Off
@@ -48,53 +40,46 @@ Shader "Truchet/UI/Tilemap"
 
             struct Varyings
             {
-                float4 positionCS : SV_POSITION;
-                float2 uv         : TEXCOORD0;
+                float4 positionHCS : SV_POSITION;
+                float2 uv          : TEXCOORD0;
             };
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
 
-            float4 _TransparentColor;
-            float4 _TintColor;
+            float4 _ColorA;
+            float4 _ColorB;
+            float4 _Background;
 
-            Varyings vert (Attributes IN)
+            Varyings vert (Attributes v)
             {
-                Varyings OUT;
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = IN.uv;
-                return OUT;
+                Varyings o;
+                o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.uv = v.uv;
+                return o;
             }
 
-            half4 frag (Varyings IN) : SV_Target
+            half4 frag (Varyings i) : SV_Target
             {
-                float4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv);
+                half t = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).r;
 
-                // Grayscale value (your texture is effectively grayscale already)
-                float gray = tex.r;
+                half3 tileRGB = lerp(_ColorA.rgb, _ColorB.rgb, t);
+                half tileA    = lerp(_ColorA.a,  _ColorB.a,  t);
 
-                // Determine mode (white or black transparent)
-                float target = _TransparentColor.r;
+                half3 bgRGB = _Background.rgb;
+                half bgA    = _Background.a;
 
-                float alpha;
+                half outA = tileA + bgA * (1.0h - tileA);
 
-                if (target > 0.5)
+                half3 outRGB = 0;
+                if (outA > 0.0h)
                 {
-                    // White = transparent
-                    alpha = 1.0 - gray;
-                }
-                else
-                {
-                    // Black = transparent
-                    alpha = gray;
+                    outRGB =
+                        (tileRGB * tileA +
+                         bgRGB * bgA * (1.0h - tileA)) / outA;
                 }
 
-                alpha = saturate(alpha);
-
-                // IMPORTANT: ignore texture color completely
-                float3 color = _TintColor.rgb;
-
-                return float4(color, alpha);
+                return half4(outRGB, outA);
             }
 
             ENDHLSL

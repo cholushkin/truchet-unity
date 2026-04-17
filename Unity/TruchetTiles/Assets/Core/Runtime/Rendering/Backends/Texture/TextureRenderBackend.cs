@@ -21,9 +21,10 @@ namespace Truchet
             EnsureOutput(resolution);
 
             Color32[] pixels = new Color32[resolution * resolution];
-            Clear(pixels, _options.BackgroundColor);
 
-            // draw larger tiles first
+            Clear(pixels);
+
+            // draw large → small
             instances.Sort((a, b) => b.Size.CompareTo(a.Size));
 
             foreach (var inst in instances)
@@ -38,7 +39,7 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // Core Draw
+        // DRAW TILE
         // --------------------------------------------------
 
         private void DrawTile(
@@ -91,7 +92,7 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // BILINEAR (ONLY MODE)
+        // BILINEAR SAMPLING
         // --------------------------------------------------
 
         private Color32 SampleBilinear(
@@ -100,27 +101,22 @@ namespace Truchet
             int texW, int texH,
             int rotation)
         {
-            // normalized UV (pixel center)
             float u = (x + 0.5f) / size;
             float v = (y + 0.5f) / size;
 
-            // rotate in UV space
             ApplyRotationUV(ref u, ref v, rotation);
 
-            // map to texture space
             float fx = u * texW - 0.5f;
             float fy = v * texH - 0.5f;
 
             int x0 = Mathf.FloorToInt(fx);
             int y0 = Mathf.FloorToInt(fy);
-
             int x1 = x0 + 1;
             int y1 = y0 + 1;
 
             float tx = fx - x0;
             float ty = fy - y0;
 
-            // clamp
             x0 = Mathf.Clamp(x0, 0, texW - 1);
             y0 = Mathf.Clamp(y0, 0, texH - 1);
             x1 = Mathf.Clamp(x1, 0, texW - 1);
@@ -163,10 +159,6 @@ namespace Truchet
             return new Color32((byte)r, (byte)g, (byte)b, (byte)a);
         }
 
-        // --------------------------------------------------
-        // Rotation (UV space)
-        // --------------------------------------------------
-
         private void ApplyRotationUV(ref float u, ref float v, int rotation)
         {
             switch (rotation & 3)
@@ -177,28 +169,73 @@ namespace Truchet
             }
         }
 
-        // --------------------------------------------------
-        // Blending
-        // --------------------------------------------------
-
         private void Blend(Color32[] target, int index, Color32 src)
         {
             if (src.a == 0) return;
 
-            byte invA = (byte)(255 - src.a);
             Color32 dst = target[index];
 
+            float srcA = src.a / 255f;
+            float dstA = dst.a / 255f;
+
+            float invA = 1f - srcA;
+
+            float outA = srcA + dstA * invA;
+
+            // convert to linear space
+            float sr = Mathf.GammaToLinearSpace(src.r / 255f);
+            float sg = Mathf.GammaToLinearSpace(src.g / 255f);
+            float sb = Mathf.GammaToLinearSpace(src.b / 255f);
+
+            float dr = Mathf.GammaToLinearSpace(dst.r / 255f);
+            float dg = Mathf.GammaToLinearSpace(dst.g / 255f);
+            float db = Mathf.GammaToLinearSpace(dst.b / 255f);
+
+            // correct alpha-aware blending (this fixes the fringe)
+            float r = sr * srcA + dr * dstA * invA;
+            float g = sg * srcA + dg * dstA * invA;
+            float b = sb * srcA + db * dstA * invA;
+
+            if (outA > 0f)
+            {
+                r /= outA;
+                g /= outA;
+                b /= outA;
+            }
+
+            // back to gamma space
+            r = Mathf.LinearToGammaSpace(r);
+            g = Mathf.LinearToGammaSpace(g);
+            b = Mathf.LinearToGammaSpace(b);
+
             target[index] = new Color32(
-                (byte)((src.r * src.a + dst.r * invA) / 255),
-                (byte)((src.g * src.a + dst.g * invA) / 255),
-                (byte)((src.b * src.a + dst.b * invA) / 255),
-                255
+                (byte)(Mathf.Clamp01(r) * 255f),
+                (byte)(Mathf.Clamp01(g) * 255f),
+                (byte)(Mathf.Clamp01(b) * 255f),
+                (byte)(outA * 255f)
             );
         }
 
         // --------------------------------------------------
-        // Tile Fetch
+        // HELPERS
         // --------------------------------------------------
+
+        private void Clear(Color32[] pixels)
+        {
+            Color32 bg = (Color32)_options.BackgroundColor;
+
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = bg;
+        }
+
+        private void EnsureOutput(int resolution)
+        {
+            if (_output == null || _output.width != resolution || _output.height != resolution)
+            {
+                _output = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
+                _output.filterMode = FilterMode.Bilinear;
+            }
+        }
 
         private bool TryGetTile(
             TileInstance inst,
@@ -233,26 +270,6 @@ namespace Truchet
             width = tex.width;
             height = tex.height;
             return true;
-        }
-
-        // --------------------------------------------------
-        // Output / Clear
-        // --------------------------------------------------
-
-        private void EnsureOutput(int resolution)
-        {
-            if (_output == null || _output.width != resolution || _output.height != resolution)
-            {
-                _output = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
-                _output.filterMode = FilterMode.Bilinear;
-            }
-        }
-
-        private void Clear(Color32[] pixels, Color color)
-        {
-            Color32 c = color;
-            for (int i = 0; i < pixels.Length; i++)
-                pixels[i] = c;
         }
     }
 }
