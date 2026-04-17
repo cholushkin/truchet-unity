@@ -1,15 +1,15 @@
-Shader "Truchet/UI/TileOutline"
+Shader "Custom/TileThreeColorOutline_URP"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
 
-        _TransparentColor ("Transparent Color", Color) = (1,1,1,1)
+        _ColorA ("Color A", Color) = (0,0,0,1)
+        _ColorB ("Color B", Color) = (1,1,1,1)
+        _Background ("Background", Color) = (1,1,1,1)
 
-        _FillColor ("Fill Color", Color) = (0,0,0,1)
         _OutlineColor ("Outline Color", Color) = (1,0,0,1)
-
-        _OutlineThickness ("Outline Thickness (pixels)", Float) = 1.0
+        _OutlineThickness ("Outline Thickness", Range(0,5)) = 1.0
     }
 
     SubShader
@@ -42,67 +42,78 @@ Shader "Truchet/UI/TileOutline"
 
             struct Varyings
             {
-                float4 positionCS : SV_POSITION;
-                float2 uv         : TEXCOORD0;
+                float4 positionHCS : SV_POSITION;
+                float2 uv          : TEXCOORD0;
             };
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
 
-            float4 _TransparentColor;
-            float4 _FillColor;
+            float4 _ColorA;
+            float4 _ColorB;
+            float4 _Background;
+
             float4 _OutlineColor;
-            float _OutlineThickness;
+            float  _OutlineThickness;
 
-            float4 _MainTex_TexelSize; // (1/width, 1/height, width, height)
+            float4 _MainTex_TexelSize;
 
-            Varyings vert (Attributes IN)
+            Varyings vert (Attributes v)
             {
-                Varyings OUT;
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = IN.uv;
-                return OUT;
+                Varyings o;
+                o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.uv = v.uv;
+                return o;
             }
 
-            float GetMask(float2 uv)
+            half SampleAlpha(float2 uv)
             {
-                float gray = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv).r;
-
-                // white transparent OR black transparent
-                if (_TransparentColor.r > 0.5)
-                    return 1.0 - gray;
-                else
-                    return gray;
+                return SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv).a;
             }
 
-            half4 frag (Varyings IN) : SV_Target
+            half4 frag (Varyings i) : SV_Target
             {
-                float2 uv = IN.uv;
+                half4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
 
-                float mask = GetMask(uv);
+                half t = tex.r;
+                half a = tex.a;
 
-                // --- sample neighbors ---
+                // --- tile color ---
+                half3 tileRGB = lerp(_ColorA.rgb, _ColorB.rgb, t);
+                half tileA    = lerp(_ColorA.a,  _ColorB.a,  t) * a;
+
+                // --- edge detection (alpha gradient) ---
                 float2 texel = _MainTex_TexelSize.xy * _OutlineThickness;
 
-                float neighbor =
-                    GetMask(uv + float2(texel.x, 0)) +
-                    GetMask(uv - float2(texel.x, 0)) +
-                    GetMask(uv + float2(0, texel.y)) +
-                    GetMask(uv - float2(0, texel.y));
+                half aL = SampleAlpha(i.uv - float2(texel.x, 0));
+                half aR = SampleAlpha(i.uv + float2(texel.x, 0));
+                half aD = SampleAlpha(i.uv - float2(0, texel.y));
+                half aU = SampleAlpha(i.uv + float2(0, texel.y));
 
-                neighbor = saturate(neighbor);
+                half edge = abs(a - aL) + abs(a - aR) + abs(a - aD) + abs(a - aU);
+                edge = saturate(edge * 2.0);
 
-                // --- detect outline ---
-                float outline = saturate(neighbor - mask);
+                // --- mix outline ---
+                half outlineA = _OutlineColor.a * edge;
+                half3 outlineRGB = _OutlineColor.rgb;
 
-                // --- final color ---
-                float3 color =
-                    _FillColor.rgb * mask +
-                    _OutlineColor.rgb * outline;
+                // outline over tile
+                half finalTileA = outlineA + tileA * (1.0h - outlineA);
+                half3 finalTileRGB =
+                    (outlineRGB * outlineA +
+                     tileRGB * tileA * (1.0h - outlineA)) / max(finalTileA, 1e-5);
 
-                float alpha = saturate(mask + outline);
+                // --- background ---
+                half3 bgRGB = _Background.rgb;
+                half bgA    = _Background.a;
 
-                return float4(color, alpha);
+                half outA = finalTileA + bgA * (1.0h - finalTileA);
+
+                half3 outRGB =
+                    (finalTileRGB * finalTileA +
+                     bgRGB * bgA * (1.0h - finalTileA)) / max(outA, 1e-5);
+
+                return half4(outRGB, outA);
             }
 
             ENDHLSL

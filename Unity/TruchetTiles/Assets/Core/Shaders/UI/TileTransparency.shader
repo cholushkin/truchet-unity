@@ -4,8 +4,8 @@ Shader "Custom/TileThreeColor_URP"
     {
         _MainTex ("Texture", 2D) = "white" {}
 
-        _ColorA ("Color A (black)", Color) = (0,0,0,1)
-        _ColorB ("Color B (white)", Color) = (1,1,1,1)
+        _ColorA ("Color A", Color) = (0,0,0,1)
+        _ColorB ("Color B", Color) = (1,1,1,1)
         _Background ("Background", Color) = (1,1,1,1)
     }
 
@@ -61,10 +61,13 @@ Shader "Custom/TileThreeColor_URP"
 
             half4 frag (Varyings i) : SV_Target
             {
-                half t = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).r;
+                half4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
+
+                half t = tex.r;     // blend between A/B
+                half a = tex.a;     // coverage
 
                 half3 tileRGB = lerp(_ColorA.rgb, _ColorB.rgb, t);
-                half tileA    = lerp(_ColorA.a,  _ColorB.a,  t);
+                half tileA    = lerp(_ColorA.a,  _ColorB.a,  t) * a;
 
                 half3 bgRGB = _Background.rgb;
                 half bgA    = _Background.a;
