@@ -15,14 +15,8 @@ namespace Truchet
         [Header("Output")]
         public int Resolution = 512;
 
-        [Header("Sampling")]
-        public TileSamplingMode SamplingMode = TileSamplingMode.Coverage;
-
         [Header("Performance")]
         public bool UseTilePixelCache = true;
-
-        [Header("Post Processing")]
-        public bool ApplyBinaryThreshold = true;
 
         [Header("Output")]
         public Color BackgroundColor = Color.white;
@@ -37,9 +31,7 @@ namespace Truchet
             var options = new TileRenderOptions
             {
                 BackgroundColor = BackgroundColor,
-                SamplingMode = SamplingMode,
                 UseTilePixelCache = UseTilePixelCache,
-                ApplyBinaryThreshold = ApplyBinaryThreshold
             };
 
             _backend.SetOptions(options);

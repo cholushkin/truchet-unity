@@ -3,16 +3,6 @@ using UnityEngine;
 
 namespace Truchet
 {
-    // TODO ROADMAP:
-    // [x] Integer raster pipeline (stable)
-    // [x] Nearest sampling
-    // [x] Coverage sampling (integer domain)
-    // [x] Bilinear sampling (integer domain, UV-free)
-    // [x] Optional pixel cache
-    // [ ] Output buffer reuse
-    // [ ] SIMD / Burst optimization
-    // [ ] Chunk rendering
-
     public class TextureRenderBackend
     {
         private Texture2D _output;
@@ -33,16 +23,12 @@ namespace Truchet
             Color32[] pixels = new Color32[resolution * resolution];
             Clear(pixels, _options.BackgroundColor);
 
+            // draw larger tiles first
             instances.Sort((a, b) => b.Size.CompareTo(a.Size));
 
             foreach (var inst in instances)
             {
                 DrawTile(pixels, resolution, inst, tileSets);
-            }
-
-            if (_options.ApplyBinaryThreshold)
-            {
-                ApplyBinaryThreshold(pixels);
             }
 
             _output.SetPixels32(pixels);
@@ -86,9 +72,9 @@ namespace Truchet
                     int dstX = startX + x;
                     if (dstX < 0 || dstX >= resolution) continue;
 
-                    Color32 color = Sample(
+                    Color32 color = SampleBilinear(
                         x, y, size,
-                        srcPixels, tex, texW, texH,
+                        srcPixels, texW, texH,
                         inst.Rotation
                     );
 
@@ -105,98 +91,7 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // Sampling Dispatcher
-        // --------------------------------------------------
-
-        private Color32 Sample(
-            int x, int y, int size,
-            Color32[] pixels,
-            Texture2D tex,
-            int texW, int texH,
-            int rotation)
-        {
-            switch (_options.SamplingMode)
-            {
-                case TileSamplingMode.Nearest:
-                    return SampleNearest(x, y, size, pixels, texW, texH, rotation);
-
-                case TileSamplingMode.Coverage:
-                    return SampleCoverage(x, y, size, pixels, texW, texH, rotation);
-
-                case TileSamplingMode.Bilinear:
-                    return SampleBilinear(x, y, size, pixels, texW, texH, rotation);
-
-                default:
-                    return default;
-            }
-        }
-
-        // --------------------------------------------------
-        // NEAREST (integer perfect)
-        // --------------------------------------------------
-
-        private Color32 SampleNearest(
-            int x, int y, int size,
-            Color32[] pixels,
-            int texW, int texH,
-            int rotation)
-        {
-            int srcX = (x * texW) / size;
-            int srcY = (y * texH) / size;
-
-            Clamp(ref srcX, ref srcY, texW, texH);
-            ApplyRotationInt(ref srcX, ref srcY, texW, texH, rotation);
-
-            return pixels[srcY * texW + srcX];
-        }
-
-        // --------------------------------------------------
-        // COVERAGE (integer MSAA)
-        // --------------------------------------------------
-
-        private Color32 SampleCoverage(
-            int x, int y, int size,
-            Color32[] pixels,
-            int texW, int texH,
-            int rotation)
-        {
-            const int N = 4;
-
-            int hits = 0;
-
-            for (int sy = 0; sy < N; sy++)
-            {
-                for (int sx = 0; sx < N; sx++)
-                {
-                    // ✅ centered subpixel offsets
-                    float ox = (sx + 0.5f) / N;
-                    float oy = (sy + 0.5f) / N;
-
-                    float fx = (x + ox) * texW / size;
-                    float fy = (y + oy) * texH / size;
-
-                    int srcX = (int)fx;
-                    int srcY = (int)fy;
-
-                    if (srcX >= texW) srcX = texW - 1;
-                    if (srcY >= texH) srcY = texH - 1;
-
-                    ApplyRotationInt(ref srcX, ref srcY, texW, texH, rotation);
-
-                    if (pixels[srcY * texW + srcX].a > 127)
-                        hits++;
-                }
-            }
-
-            float coverage = hits / (float)(N * N);
-
-            byte value = (byte)(coverage * 255f);
-
-            return new Color32(value, value, value, value);
-        }
-
-        // --------------------------------------------------
-        // BILINEAR (integer interpolation)
+        // BILINEAR (ONLY MODE)
         // --------------------------------------------------
 
         private Color32 SampleBilinear(
@@ -205,14 +100,14 @@ namespace Truchet
             int texW, int texH,
             int rotation)
         {
-            // --- normalized UV (pixel center)
+            // normalized UV (pixel center)
             float u = (x + 0.5f) / size;
             float v = (y + 0.5f) / size;
 
-            // --- rotate in UV space (CORRECT)
+            // rotate in UV space
             ApplyRotationUV(ref u, ref v, rotation);
 
-            // --- map to texture space
+            // map to texture space
             float fx = u * texW - 0.5f;
             float fy = v * texH - 0.5f;
 
@@ -269,24 +164,9 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // Rotation
+        // Rotation (UV space)
         // --------------------------------------------------
 
-        private void ApplyRotationInt(
-            ref int x,
-            ref int y,
-            int width,
-            int height,
-            int rotation)
-        {
-            switch (rotation & 3)
-            {
-                case 1: (x, y) = (y, width - 1 - x); break;
-                case 2: x = width - 1 - x; y = height - 1 - y; break;
-                case 3: (x, y) = (height - 1 - y, x); break;
-            }
-        }
-        
         private void ApplyRotationUV(ref float u, ref float v, int rotation)
         {
             switch (rotation & 3)
@@ -298,14 +178,8 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // Helpers
+        // Blending
         // --------------------------------------------------
-
-        private void Clamp(ref int x, ref int y, int w, int h)
-        {
-            if (x >= w) x = w - 1;
-            if (y >= h) y = h - 1;
-        }
 
         private void Blend(Color32[] target, int index, Color32 src)
         {
@@ -321,6 +195,10 @@ namespace Truchet
                 255
             );
         }
+
+        // --------------------------------------------------
+        // Tile Fetch
+        // --------------------------------------------------
 
         private bool TryGetTile(
             TileInstance inst,
@@ -357,6 +235,10 @@ namespace Truchet
             return true;
         }
 
+        // --------------------------------------------------
+        // Output / Clear
+        // --------------------------------------------------
+
         private void EnsureOutput(int resolution)
         {
             if (_output == null || _output.width != resolution || _output.height != resolution)
@@ -371,23 +253,6 @@ namespace Truchet
             Color32 c = color;
             for (int i = 0; i < pixels.Length; i++)
                 pixels[i] = c;
-        }
-        
-        private void ApplyBinaryThreshold(Color32[] pixels)
-        {
-            const int threshold = 127;
-
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                Color32 c = pixels[i];
-
-                // compute brightness (simple average)
-                int brightness = (c.r + c.g + c.b) / 3;
-
-                pixels[i] = brightness > threshold
-                    ? new Color32(255, 255, 255, 255)
-                    : new Color32(0, 0, 0, 255);
-            }
         }
     }
 }

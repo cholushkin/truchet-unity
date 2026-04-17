@@ -21,8 +21,8 @@ from truchet_viewer.drawing import cairo_context
 OUTPUT_DIR = Path("tiles")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-tile_size = 512
-inner = tile_size * 0.6
+tile_size = 256
+inner = tile_size * 0.5
 
 # --- tile sets ---
 TILE_SETS = {

@@ -13,11 +13,6 @@ namespace Truchet
     public struct TileRenderOptions
     {
         public Color BackgroundColor;
-
-        public TileSamplingMode SamplingMode;
-
         public bool UseTilePixelCache;
-
-        public bool ApplyBinaryThreshold;
     }
 }
