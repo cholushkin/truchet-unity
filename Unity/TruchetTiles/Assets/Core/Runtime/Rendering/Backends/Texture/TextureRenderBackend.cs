@@ -48,6 +48,20 @@ namespace Truchet
             TileInstance inst,
             TileSet[] tileSets)
         {
+            if (inst.TileSetId < 0 || inst.TileIndex < 0)
+                return;
+
+            if (inst.TileSetId >= tileSets.Length)
+                return;
+
+            var tileSet = tileSets[inst.TileSetId];
+            if (tileSet == null || tileSet.tiles == null)
+                return;
+
+            if (inst.TileIndex >= tileSet.tiles.Length)
+                return;
+            
+            
             if (!TryGetTile(inst, tileSets, out var tex, out var srcPixels, out int texW, out int texH))
                 return;
 

@@ -24,6 +24,9 @@ namespace Truchet
 
             foreach (var inst in instances)
             {
+                if (inst.TileIndex < 0)
+                    continue;
+                
                 if (!tileSetOffsets.TryGetValue(inst.TileSetId, out int offset))
                     continue;
 

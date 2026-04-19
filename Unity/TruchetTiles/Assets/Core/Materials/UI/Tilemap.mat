@@ -21,7 +21,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Tilemap
-  m_Shader: {fileID: 4800000, guid: 98b0ace7dbfc2444fb618a60527bc7da, type: 3}
+  m_Shader: {fileID: 4800000, guid: 069d424dcda0ea0468b7696def91f3ee, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -118,7 +118,7 @@ Material:
     - _GlossyReflections: 0
     - _Metallic: 0
     - _OcclusionStrength: 1
-    - _OutlineThickness: 1.16
+    - _OutlineThickness: 1.53
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
@@ -129,21 +129,21 @@ Material:
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
     - _Surface: 0
-    - _Threshold1: 0.1
-    - _Threshold2: 0.1
+    - _Threshold1: 0.05
+    - _Threshold2: 0.05
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _Background: {r: 0, g: 0, b: 0, a: 0.7019608}
+    - _Background: {r: 0, g: 0, b: 0, a: 0}
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _ColorA: {r: 0.8679245, g: 0.11190202, b: 0.11190202, a: 1}
-    - _ColorB: {r: 0.4270597, g: 0.42705965, b: 0.899371, a: 1}
-    - _ColorC: {r: 0.427451, g: 0.427451, b: 0.8980393, a: 1}
+    - _ColorA: {r: 0.67295593, g: 0.3856903, b: 0.035975583, a: 1}
+    - _ColorB: {r: 0.2, g: 0.2, b: 0.2, a: 1}
+    - _ColorC: {r: 0.20000002, g: 0.20000002, b: 0.20000002, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FillColor: {r: 0, g: 0, b: 0, a: 1}
-    - _OutlineColor: {r: 0, g: 0, b: 1, a: 1}
+    - _OutlineColor: {r: 1, g: 1, b: 1, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
     - _TintColor: {r: 0.049839754, g: 0.20094135, b: 0.25157225, a: 1}
     - _TransparentColor: {r: 1, g: 1, b: 1, a: 1}

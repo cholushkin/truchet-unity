@@ -4,35 +4,22 @@ using UnityEngine.UI;
 
 namespace Truchet
 {
-    // TODO ROADMAP:
-    // [x] Separate debug overlay renderer
-    // [x] Pixel-perfect cell drawing
-    // [x] Editor auto-refresh (OnValidate)
-    // [x] Runtime redraw support
-    // [x] Click → cell mapping
-    // [x] Multi-target output (Mesh, Sprite, UI)
-    // [ ] Hover highlight
-    // [ ] Cell info UI
-    // [ ] Quadtree debug (non-uniform)
-
     [ExecuteAlways]
     public class CellRenderDbgOverlay : MonoBehaviour
     {
-        [Header("Targets")]
-        public Renderer TargetRenderer;
+        [Header("Targets")] public Renderer TargetRenderer;
         public SpriteRenderer TargetSpriteRenderer;
         public Image TargetImage;
 
-        [Header("Overlay")]
-        public int Resolution = 512;
+        [Header("Overlay")] public int Resolution = 512;
         public bool DrawCells = true;
 
         [Tooltip("Colors per level (includes alpha)")]
         public Color[] LevelColors = new Color[]
         {
-            new Color(0,1,0,0.8f),
-            new Color(1,0,0,0.8f),
-            new Color(0,0,1,0.8f)
+            new Color(0, 1, 0, 0.8f),
+            new Color(1, 0, 0, 0.8f),
+            new Color(0, 0, 1, 0.8f)
         };
 
         private Texture2D _texture;
@@ -77,20 +64,15 @@ namespace Truchet
             if (_texture == null)
                 return;
 
-            // Mesh Renderer
             if (TargetRenderer != null)
-            {
                 TargetRenderer.sharedMaterial.mainTexture = _texture;
-            }
 
-            // Sprite Renderer
             if (TargetSpriteRenderer != null)
             {
                 EnsureSprite();
                 TargetSpriteRenderer.sprite = _sprite;
             }
 
-            // UI Image
             if (TargetImage != null)
             {
                 EnsureSprite();
@@ -120,18 +102,27 @@ namespace Truchet
 
             foreach (var inst in _instances)
             {
-                Vector2 minF = (inst.Position - Vector2.one * inst.Size * 0.5f) * res;
-                Vector2 maxF = (inst.Position + Vector2.one * inst.Size * 0.5f) * res;
+                float half = inst.Size * 0.5f;
 
-                int minX = Mathf.FloorToInt(minF.x);
-                int minY = Mathf.FloorToInt(minF.y);
+                Vector2 min = inst.Position - new Vector2(half, half);
+                Vector2 max = inst.Position + new Vector2(half, half);
 
-                int maxX = Mathf.FloorToInt(maxF.x) - 1;
-                int maxY = Mathf.FloorToInt(maxF.y) - 1;
+                // convert to pixel space
+                int minX = Mathf.FloorToInt(min.x * res);
+                int minY = Mathf.FloorToInt(min.y * res);
+                int maxX = Mathf.CeilToInt(max.x * res);
+                int maxY = Mathf.CeilToInt(max.y * res);
+
+                bool isEmpty = inst.TileSetId < 0 || inst.TileIndex < 0;
 
                 Color32 color = GetLevelColor(inst.Level);
 
                 DrawRect(minX, minY, maxX, maxY, color);
+
+                if (isEmpty)
+                {
+                    DrawCross(minX, minY, maxX, maxY, new Color32(255, 0, 0, 255));
+                }
             }
         }
 
@@ -157,6 +148,28 @@ namespace Truchet
             {
                 SetPixel(minX, y, color);
                 SetPixel(maxX, y, color);
+            }
+        }
+
+        private void DrawCross(int minX, int minY, int maxX, int maxY, Color32 color)
+        {
+            int dx = maxX - minX;
+            int dy = maxY - minY;
+
+            int steps = Mathf.Max(dx, dy);
+
+            for (int i = 0; i <= steps; i++)
+            {
+                float t = steps == 0 ? 0f : (float)i / steps;
+
+                int x1 = Mathf.RoundToInt(Mathf.Lerp(minX, maxX, t));
+                int y1 = Mathf.RoundToInt(Mathf.Lerp(minY, maxY, t));
+
+                int x2 = Mathf.RoundToInt(Mathf.Lerp(minX, maxX, t));
+                int y2 = Mathf.RoundToInt(Mathf.Lerp(maxY, minY, t));
+
+                SetPixel(x1, y1, color);
+                SetPixel(x2, y2, color);
             }
         }
 
@@ -199,10 +212,6 @@ namespace Truchet
                 _texture.filterMode = FilterMode.Point;
             }
         }
-
-        // --------------------------------------------------
-        // EDITOR AUTO UPDATE
-        // --------------------------------------------------
 
         private void OnValidate()
         {

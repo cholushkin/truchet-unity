@@ -1,14 +1,3 @@
-// TODO ROADMAP:
-// [x] Simplified composition (no interfaces)
-// [x] Strongly typed layout entry points
-// [x] Unified tile instance output
-// [x] Normalize output (0..1 space)
-// [x] Propagate winged tile flag
-// [ ] Move builders into dedicated logical builders
-// [ ] Add bounds calculation
-// [ ] Add chunked composition
-// [ ] Add job system support
-
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -17,7 +6,7 @@ namespace Truchet
     public static class InstanceComposition
     {
         // --------------------------------------------------
-        // GRID ENTRY POINT (NORMALIZED)
+        // GRID ENTRY POINT
         // --------------------------------------------------
 
         public static List<TileInstance> Build(
@@ -35,11 +24,17 @@ namespace Truchet
                 {
                     GridCell cell = grid.GetCell(x, y);
 
-                    if (!IsValid(cell, tileSets))
-                        continue;
+                    bool isEmpty = IsEmpty(cell.TileSetId, cell.TileIndex);
 
-                    var set = tileSets[cell.TileSetId];
-                    var tile = set.tiles[cell.TileIndex];
+                    bool isRenderable = !isEmpty && IsRenderable(cell, tileSets);
+
+                    bool isWinged = false;
+
+                    if (isRenderable)
+                    {
+                        var tile = tileSets[cell.TileSetId].tiles[cell.TileIndex];
+                        isWinged = tile.IsWinged;
+                    }
 
                     instances.Add(new TileInstance
                     {
@@ -54,7 +49,7 @@ namespace Truchet
                         Rotation  = cell.Rotation,
                         Level     = 0,
 
-                        IsWinged = tile.IsWinged
+                        IsWinged = isWinged
                     });
                 }
             }
@@ -65,7 +60,7 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // HIERARCHICAL ENTRY POINT (ALREADY NORMALIZED)
+        // HIERARCHICAL ENTRY POINT
         // --------------------------------------------------
 
         public static List<TileInstance> Build(
@@ -81,11 +76,17 @@ namespace Truchet
                 if (!node.IsActive)
                     continue;
 
-                if (!IsValid(node, tileSets))
-                    continue;
+                bool isEmpty = IsEmpty(node.TileSetId, node.TileIndex);
 
-                var set = tileSets[node.TileSetId];
-                var tile = set.tiles[node.TileIndex];
+                bool isRenderable = !isEmpty && IsRenderable(node, tileSets);
+
+                bool isWinged = false;
+
+                if (isRenderable)
+                {
+                    var tile = tileSets[node.TileSetId].tiles[node.TileIndex];
+                    isWinged = tile.IsWinged;
+                }
 
                 instances.Add(new TileInstance
                 {
@@ -100,7 +101,7 @@ namespace Truchet
                     Rotation  = node.Rotation,
                     Level     = node.Level,
 
-                    IsWinged = tile.IsWinged
+                    IsWinged = isWinged
                 });
             }
 
@@ -110,16 +111,20 @@ namespace Truchet
         }
 
         // --------------------------------------------------
-        // VALIDATION
+        // SEMANTICS
         // --------------------------------------------------
 
-        private static bool IsValid(GridCell cell, TileSet[] tileSets)
+        private static bool IsEmpty(int setId, int tileIndex)
+        {
+            return setId < 0 || tileIndex < 0;
+        }
+
+        private static bool IsRenderable(GridCell cell, TileSet[] tileSets)
         {
             if (cell.TileSetId < 0 || cell.TileSetId >= tileSets.Length)
                 return false;
 
             var set = tileSets[cell.TileSetId];
-
             if (set == null || set.tiles == null)
                 return false;
 
@@ -129,13 +134,12 @@ namespace Truchet
             return set.tiles[cell.TileIndex] != null;
         }
 
-        private static bool IsValid(QuadNode node, TileSet[] tileSets)
+        private static bool IsRenderable(QuadNode node, TileSet[] tileSets)
         {
             if (node.TileSetId < 0 || node.TileSetId >= tileSets.Length)
                 return false;
 
             var set = tileSets[node.TileSetId];
-
             if (set == null || set.tiles == null)
                 return false;
 

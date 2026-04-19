@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28bd8211c3a005a458168f0afdf366fc, type: 3}
+  m_Name: carlson_basic
+  m_EditorClassIdentifier: Assembly-CSharp::Truchet.TileSet
+  tiles:
+  - {fileID: 11400000, guid: dff81b96f52c87e41b06fe5c417510ae, type: 2}
+  - {fileID: 11400000, guid: 8b43ea0a84b2be246a9d0c89d5f85386, type: 2}
+  - {fileID: 11400000, guid: 294ef4c2ecb576346b7adb6209f81e3a, type: 2}
+  - {fileID: 11400000, guid: 3993f13141c98ac40950e11c06382ad6, type: 2}
+  - {fileID: 11400000, guid: 8cfc2423b7c6d7747adc20b6a39c4f75, type: 2}
+  - {fileID: 11400000, guid: b3f2e266e7332f2469f49ad4d8a8d288, type: 2}
+  - {fileID: 11400000, guid: f3a9d8d19217b23419f27cd58cccdca5, type: 2}
+  - {fileID: 11400000, guid: c6a7ba2ec12cefe4ea2801666a53faf1, type: 2}
