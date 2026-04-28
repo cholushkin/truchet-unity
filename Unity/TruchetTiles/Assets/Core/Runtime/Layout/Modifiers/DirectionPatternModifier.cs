@@ -16,7 +16,7 @@ namespace Truchet
         [ResizableTextArea]
         [SerializeField] private string _rotationPattern;
 
-        public override void Apply(IGridLayout layout, Random rng)
+        public override void Apply(QuadTree layout, Random rng)
         {
             if (!enabled)
                 return;
@@ -34,7 +34,8 @@ namespace Truchet
             if (rows.Length == 0)
                 return;
 
-            GetClampedRegion(layout, out int startX, out int startY, out int endX, out int endY);
+            int startX = 0; int  startY = 0;
+            int endX = 1; int endY = 1;
 
             for (int y = startY; y < endY; y++)
             {
@@ -50,7 +51,15 @@ namespace Truchet
                     int rotation = DirectionToRotation(c);
                     int tileIndex = x % _tileSet.tiles.Length;
 
-                    layout.SetTile(x, y, TileSetId, tileIndex, rotation);
+                    int nodeIndex = layout.FindLeafAt(
+                        (x + 0.5f) / (float)(endX - startX),
+                        (y + 0.5f) / (float)(endY - startY)
+                    );
+
+                    if (nodeIndex >= 0)
+                    {
+                        layout.SetTileByNode(nodeIndex, TileSetId, tileIndex, rotation);
+                    }
                 }
             }
         }

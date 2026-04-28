@@ -14,7 +14,7 @@ using System.Collections.Generic;
 
 namespace Truchet
 {
-    public class QuadTree : IGridLayout, IHierarchicalLayout
+    public class QuadTree : IHierarchicalLayout
     {
         private struct QuadNode
         {
@@ -41,9 +41,6 @@ namespace Truchet
         private readonly int _logicalWidth;
         private readonly int _logicalHeight;
 
-        private bool _isUniformDepth;
-        private int _uniformDepth;
-
         public int NodeCount => _nodes.Count;
         public int LogicalWidth => _logicalWidth;
         public int LogicalHeight => _logicalHeight;
@@ -61,9 +58,6 @@ namespace Truchet
                 return count;
             }
         }
-
-        public bool IsUniformDepth => _isUniformDepth;
-        public int UniformDepth => _uniformDepth;
 
         public int FreeBlockCount => _freeBlocks.Count;
 
@@ -86,8 +80,6 @@ namespace Truchet
                 TileIndex = -1,
                 Rotation = 0
             });
-
-            RecalculateUniformState();
         }
 
         public void Subdivide(int nodeIndex)
@@ -112,8 +104,6 @@ namespace Truchet
             CreateChild(childStart + 1, node, half, 0f, half, level, nodeIndex);
             CreateChild(childStart + 2, node, 0f, half, half, level, nodeIndex);
             CreateChild(childStart + 3, node, half, half, half, level, nodeIndex);
-
-            RecalculateUniformState();
         }
 
         public void Collapse(int nodeIndex)
@@ -265,122 +255,6 @@ namespace Truchet
             node.Rotation = rotation;
 
             _nodes[nodeIndex] = node;
-        }
-
-        public int Width
-        {
-            get
-            {
-                EnsureUniform();
-                return 1 << _uniformDepth;
-            }
-        }
-
-        public int Height
-        {
-            get
-            {
-                EnsureUniform();
-                return 1 << _uniformDepth;
-            }
-        }
-
-        public bool IsValid(int x, int y)
-        {
-            if (!_isUniformDepth)
-                return false;
-
-            int res = 1 << _uniformDepth;
-            return x >= 0 && y >= 0 && x < res && y < res;
-        }
-
-        public GridCell GetCell(int x, int y)
-        {
-            EnsureUniform();
-
-            if (!IsValid(x, y))
-                throw new ArgumentOutOfRangeException();
-
-            int nodeIndex = TraverseToLeaf(x, y);
-
-            var node = _nodes[nodeIndex];
-
-            return new GridCell(x, y)
-            {
-                TileSetId = node.TileSetId,
-                TileIndex = node.TileIndex,
-                Rotation = node.Rotation
-            };
-        }
-
-        public void SetTile(int x, int y, int tileSetId, int tileIndex, int rotation)
-        {
-            EnsureUniform();
-
-            int nodeIndex = TraverseToLeaf(x, y);
-
-            SetTileByNode(nodeIndex, tileSetId, tileIndex, rotation);
-        }
-
-        private int TraverseToLeaf(int x, int y)
-        {
-            int nodeIndex = 0;
-
-            for (int level = _uniformDepth - 1; level >= 0; level--)
-            {
-                var node = _nodes[nodeIndex];
-
-                if (node.IsLeaf)
-                    return nodeIndex;
-
-                int half = 1 << level;
-
-                bool right = x >= half;
-                bool top = y >= half;
-
-                int childOffset =
-                    (!right && !top) ? 0 :
-                    ( right && !top) ? 1 :
-                    (!right &&  top) ? 2 : 3;
-
-                if (right) x -= half;
-                if (top) y -= half;
-
-                nodeIndex = node.ChildIndex + childOffset;
-            }
-
-            return nodeIndex;
-        }
-
-        private void RecalculateUniformState()
-        {
-            int? depth = null;
-            bool uniform = true;
-
-            for (int i = 0; i < _nodes.Count; i++)
-            {
-                var n = _nodes[i];
-                if (!n.IsActive || !n.IsLeaf)
-                    continue;
-
-                if (depth == null)
-                    depth = n.Level;
-                else if (depth.Value != n.Level)
-                {
-                    uniform = false;
-                    break;
-                }
-            }
-
-            _isUniformDepth = uniform && depth.HasValue;
-            _uniformDepth = depth ?? 0;
-        }
-
-        private void EnsureUniform()
-        {
-            if (!_isUniformDepth)
-                throw new InvalidOperationException(
-                    "QuadTreeTileMap is adaptive. IGridLayout not supported.");
         }
 
         private void ValidateNodeIndex(int index)

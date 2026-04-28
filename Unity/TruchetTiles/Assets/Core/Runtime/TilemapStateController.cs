@@ -3,15 +3,6 @@ using UnityEngine;
 
 public class TilemapStateController : MonoBehaviour
 {
-    private enum StateType : byte
-    {
-        None = 0,
-        Grid = 1,
-        QuadTree = 2
-    }
-
-    [SerializeField] private StateType _type;
-
     // FULL SNAPSHOT (tiles + structure)
     [SerializeField] private byte[] _fullData;
 
@@ -19,7 +10,6 @@ public class TilemapStateController : MonoBehaviour
     [SerializeField] private byte[] _structureData;
 
     // Cached runtime snapshots
-    private GridSnapshot _grid;
     private QuadTreeSnapshot _quad;
     private QuadTreeStructureSnapshot _structure;
 
@@ -36,35 +26,15 @@ public class TilemapStateController : MonoBehaviour
 
     public void Capture(TruchetRuntime runtime)
     {
-        if (runtime.IsGrid)
-        {
-            _type = StateType.Grid;
+        var quad = (QuadTree)runtime.GetHierarchicalLayout();
 
-            var grid = runtime.GetGridLayout();
-            _grid = CaptureGrid(grid, runtime.RootSeed);
-
-            _fullData = GridSnapshotSerializer.Serialize(_grid);
-        }
-        else if (runtime.IsQuadTree)
-        {
-            _type = StateType.QuadTree;
-
-            var quad = (QuadTree)runtime.GetHierarchicalLayout();
-
-            _quad = CaptureQuad(quad, runtime.RootSeed);
-            _fullData = SerializeQuad(_quad);
-        }
+        _quad = CaptureQuad(quad, runtime.RootSeed);
+        _fullData = SerializeQuad(_quad);
     }
 
     // 🆕 STRUCTURE ONLY
     public void CaptureStructure(TruchetRuntime runtime)
     {
-        if (!runtime.IsQuadTree)
-        {
-            Debug.LogWarning("[State] Structure snapshot only valid for QuadTree.");
-            return;
-        }
-
         var quad = (QuadTree)runtime.GetHierarchicalLayout();
 
         _structure = QuadTreeStructureSerializer.Capture(
@@ -75,8 +45,6 @@ public class TilemapStateController : MonoBehaviour
 
         _structureData = SerializeStructure(_structure);
 
-        _type = StateType.QuadTree;
-
         Debug.Log("[State] QuadTree STRUCTURE captured.");
     }
 
@@ -86,41 +54,23 @@ public class TilemapStateController : MonoBehaviour
 
     public void Apply(TruchetRuntime runtime)
     {
-        if (_type == StateType.Grid)
-        {
-            if (_grid.Tiles == null || _grid.Tiles.Length == 0)
-                _grid = GridSnapshotSerializer.Deserialize(_fullData);
+       
+   
+        if (_quad.Nodes == null || _quad.Nodes.Length == 0)
+            _quad = DeserializeQuad(_fullData);
 
-            runtime.RootSeed = _grid.Seed;
-            runtime.ReinitRng();
+        runtime.RootSeed = _quad.Seed;
+        runtime.ReinitRng();
 
-            var grid = ApplyGrid(_grid);
-            runtime.SetGridLayout(grid);
-        }
-        else if (_type == StateType.QuadTree)
-        {
-            if (_quad.Nodes == null || _quad.Nodes.Length == 0)
-                _quad = DeserializeQuad(_fullData);
-
-            runtime.RootSeed = _quad.Seed;
-            runtime.ReinitRng();
-
-            var quad = ApplyQuad(_quad);
-            runtime.SetHierarchicalLayout(quad);
-        }
-
+        var quad = ApplyQuad(_quad);
+        runtime.SetHierarchicalLayout(quad);
+  
         runtime.RebuildComposition();
     }
 
     // 🆕 APPLY STRUCTURE ONLY (UPDATED PIPELINE)
     public void ApplyStructure(TruchetRuntime runtime)
     {
-        if (_type != StateType.QuadTree)
-        {
-            Debug.LogWarning("[State] No QuadTree structure available.");
-            return;
-        }
-
         if (_structure.Data == null || _structure.Data.Length == 0)
             _structure = DeserializeStructure(_structureData);
 
@@ -157,59 +107,6 @@ public class TilemapStateController : MonoBehaviour
         runtime.RebuildComposition();
 
         Debug.Log("[State] QuadTree STRUCTURE applied.");
-    }
-
-    // =====================================================
-    // GRID
-    // =====================================================
-
-    private GridSnapshot CaptureGrid(IGridLayout grid, uint seed)
-    {
-        int w = grid.Width;
-        int h = grid.Height;
-
-        var tiles = new PackedTile[w * h];
-
-        int i = 0;
-
-        for (int y = 0; y < h; y++)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                var cell = grid.GetCell(x, y);
-
-                int setId = cell.TileSetId;
-                int tileIndex = cell.TileIndex;
-
-                tiles[i++] = PackedTile.Encode(setId, tileIndex, cell.Rotation);
-            }
-        }
-
-        return new GridSnapshot
-        {
-            Width = (ushort)w,
-            Height = (ushort)h,
-            Tiles = tiles,
-            Seed = seed
-        };
-    }
-
-    private RegularGrid ApplyGrid(GridSnapshot snapshot)
-    {
-        var grid = new RegularGrid(snapshot.Width, snapshot.Height);
-
-        int i = 0;
-
-        for (int y = 0; y < snapshot.Height; y++)
-        {
-            for (int x = 0; x < snapshot.Width; x++)
-            {
-                snapshot.Tiles[i++].Decode(out int setId, out int tileIndex, out int rot);
-                grid.SetTile(x, y, setId, tileIndex, rot);
-            }
-        }
-
-        return grid;
     }
 
     // =====================================================

@@ -41,7 +41,7 @@ namespace Truchet
         private Vector2 _spatialRegionMax;
         private GameLib.Random.Random _rng;
 
-        public override void Apply(IGridLayout layout, GameLib.Random.Random rng)
+        public override void Apply(QuadTree layout, GameLib.Random.Random rng)
         {
             if (!enabled)
                 return;

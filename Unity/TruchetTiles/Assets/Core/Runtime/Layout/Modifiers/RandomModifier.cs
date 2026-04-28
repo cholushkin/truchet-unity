@@ -18,7 +18,7 @@ namespace Truchet
         [SerializeField] private int[] _allowedRotations = { 0, 1, 2, 3 };
         private Random _rng;
 
-        public override void Apply(IGridLayout layout, GameLib.Random.Random rng)
+        public override void Apply(QuadTree layout, GameLib.Random.Random rng)
         {
             if (!enabled)
                 return;
@@ -35,7 +35,8 @@ namespace Truchet
 
             Debug.Log($"[RandomModifier] Tile count: {_tileSet.tiles.Length}");
 
-            GetClampedRegion(layout, out int startX, out int startY, out int endX, out int endY);
+            int startX = 0; int  startY = 0;
+            int endX = 1; int endY = 1;
 
             for (int y = startY; y < endY; y++)
             {
@@ -44,7 +45,7 @@ namespace Truchet
                     int tileIndex = _rng.Range(0, _tileSet.tiles.Length);
                     int rotation = GetRotation();
 
-                    layout.SetTile(x, y, TileSetId, tileIndex, rotation);
+                    //layout.SetTile(x, y, TileSetId, tileIndex, rotation);
                 }
             }
         }

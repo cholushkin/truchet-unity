@@ -6,60 +6,6 @@ namespace Truchet
     public static class InstanceComposition
     {
         // --------------------------------------------------
-        // GRID ENTRY POINT
-        // --------------------------------------------------
-
-        public static List<TileInstance> Build(
-            IGridLayout grid,
-            TileSet[] tileSets)
-        {
-            List<TileInstance> instances = new List<TileInstance>();
-
-            float invWidth  = 1f / grid.Width;
-            float invHeight = 1f / grid.Height;
-
-            for (int y = 0; y < grid.Height; y++)
-            {
-                for (int x = 0; x < grid.Width; x++)
-                {
-                    GridCell cell = grid.GetCell(x, y);
-
-                    bool isEmpty = IsEmpty(cell.TileSetId, cell.TileIndex);
-
-                    bool isRenderable = !isEmpty && IsRenderable(cell, tileSets);
-
-                    bool isWinged = false;
-
-                    if (isRenderable)
-                    {
-                        var tile = tileSets[cell.TileSetId].tiles[cell.TileIndex];
-                        isWinged = tile.IsWinged;
-                    }
-
-                    instances.Add(new TileInstance
-                    {
-                        Position = new Vector2(
-                            (x + 0.5f) * invWidth,
-                            (y + 0.5f) * invHeight),
-
-                        Size = invWidth,
-
-                        TileSetId = cell.TileSetId,
-                        TileIndex = cell.TileIndex,
-                        Rotation  = cell.Rotation,
-                        Level     = 0,
-
-                        IsWinged = isWinged
-                    });
-                }
-            }
-
-            Debug.Log($"[Compose/Grid] Total instances: {instances.Count}");
-
-            return instances;
-        }
-
-        // --------------------------------------------------
         // HIERARCHICAL ENTRY POINT
         // --------------------------------------------------
 
@@ -117,21 +63,6 @@ namespace Truchet
         private static bool IsEmpty(int setId, int tileIndex)
         {
             return setId < 0 || tileIndex < 0;
-        }
-
-        private static bool IsRenderable(GridCell cell, TileSet[] tileSets)
-        {
-            if (cell.TileSetId < 0 || cell.TileSetId >= tileSets.Length)
-                return false;
-
-            var set = tileSets[cell.TileSetId];
-            if (set == null || set.tiles == null)
-                return false;
-
-            if (cell.TileIndex < 0 || cell.TileIndex >= set.tiles.Length)
-                return false;
-
-            return set.tiles[cell.TileIndex] != null;
         }
 
         private static bool IsRenderable(QuadNode node, TileSet[] tileSets)

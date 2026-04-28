@@ -24,13 +24,6 @@ namespace Truchet
 {
     public class TruchetRuntime : MonoBehaviour
     {
-        public enum LayoutMode
-        {
-            RegularGrid,
-            QuadTree
-        }
-
-        [SerializeField] private LayoutMode _layoutMode = LayoutMode.RegularGrid;
         [SerializeField] private int _width = 8;
         [SerializeField] private int _height = 8;
 
@@ -40,8 +33,6 @@ namespace Truchet
         [AddRandomizeButton] public uint RootSeed;
 
         private Random _rng;
-
-        private IGridLayout _gridLayout;
         private IHierarchicalLayout _hierarchicalLayout;
 
         private TileSet[] _tileSets;
@@ -51,25 +42,14 @@ namespace Truchet
 
         public TileSet[] TileSets => _tileSets;
 
-        public bool IsGrid => _gridLayout != null;
-        public bool IsQuadTree => _hierarchicalLayout != null;
-
         public int Width => _width;
         public int Height => _height;
 
-        public IGridLayout GetGridLayout() => _gridLayout;
         public IHierarchicalLayout GetHierarchicalLayout() => _hierarchicalLayout;
-
-        public void SetGridLayout(IGridLayout grid)
-        {
-            _gridLayout = grid;
-            _hierarchicalLayout = null;
-        }
 
         public void SetHierarchicalLayout(IHierarchicalLayout layout)
         {
             _hierarchicalLayout = layout;
-            _gridLayout = null;
         }
 
         private void Start()
@@ -127,16 +107,8 @@ namespace Truchet
 
             _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
 
-            if (_layoutMode == LayoutMode.RegularGrid)
-            {
-                Debug.Log($"[Truchet] Layout: RegularGrid ({_width}x{_height})");
-                GenerateRegularGrid(_rng);
-            }
-            else
-            {
-                Debug.Log($"[Truchet] Layout: QuadTree ({_width}x{_height})");
-                GenerateQuadTree(_rng);
-            }
+            Debug.Log($"[Truchet] Layout: QuadTree ({_width}x{_height})");
+            GenerateQuadTree(_rng);
         }
         
         [Button("Dump QuadTree")]
@@ -165,8 +137,8 @@ namespace Truchet
             }
 
             Debug.Log(
-                $"[Truchet] DumpQuadTree → Nodes: {quad.NodeCount}, Leafs: {quad.LeafCount}, " +
-                $"Uniform: {quad.IsUniformDepth}, Depth: {quad.UniformDepth}"
+                $"[Truchet] DumpQuadTree → Nodes: {quad.NodeCount}, Leafs: {quad.LeafCount}, " //+
+                //$"Uniform: {quad.IsUniformDepth}, Depth: {quad.UniformDepth}"
             );
 
             quad.DebugPrintTree();
@@ -220,21 +192,6 @@ namespace Truchet
         // GENERATION MODES
         // =====================================================
 
-        private void GenerateRegularGrid(Random rng)
-        {
-            var map = new RegularGrid(_width, _height);
-
-            SetGridLayout(map);
-
-            var (tileSets, modifiers) = CollectModifiers();
-            _tileSets = tileSets;
-
-            foreach (var mod in modifiers)
-                mod.Apply(map, rng);
-
-            RebuildComposition();
-        }
-
         private void GenerateQuadTree(Random rng)
         {
             var map = new QuadTree(1f, _width, _height);
@@ -256,11 +213,8 @@ namespace Truchet
 
         public void ModifyAtUV(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
-            if (_gridLayout != null)
-                ModifyGrid(uv, mode);
-            else if (_hierarchicalLayout != null)
+            if (_hierarchicalLayout != null)
                 ModifyQuadTree(uv, mode);
-
             RebuildComposition();
         }
 
@@ -277,36 +231,6 @@ namespace Truchet
             Debug.Log($"RND TILE: {FormatTile(setId, tileIndex, rot)}");
 
             return (setId, tileIndex, rot);
-        }
-
-        private void ModifyGrid(Vector2 uv, TileInteractionController.InteractionMode mode)
-        {
-            uv.x = Mathf.Clamp01(uv.x);
-            uv.y = Mathf.Clamp01(uv.y);
-
-            int x = Mathf.Min(Mathf.FloorToInt(uv.x * _gridLayout.Width), _gridLayout.Width - 1);
-            int y = Mathf.Min(Mathf.FloorToInt(uv.y * _gridLayout.Height), _gridLayout.Height - 1);
-
-            if (!_gridLayout.IsValid(x, y))
-                return;
-
-            if (mode == TileInteractionController.InteractionMode.Random)
-            {
-                var (setId, tileIndex, rot) = GetRandomTile();
-                _gridLayout.SetTile(x, y, setId, tileIndex, rot);
-            }
-
-            if (mode == TileInteractionController.InteractionMode.Erase)
-            {
-                _gridLayout.SetTile(x, y, -1, -1, 0);
-            }
-
-            if (mode == TileInteractionController.InteractionMode.Turn)
-            {
-                var cell = _gridLayout.GetCell(x, y);
-                int newRot = (cell.Rotation + 1) & 3;
-                _gridLayout.SetTile(x, y, cell.TileSetId, cell.TileIndex, newRot);
-            }
         }
 
         private void ModifyQuadTree(Vector2 uv, TileInteractionController.InteractionMode mode)
@@ -370,9 +294,7 @@ namespace Truchet
 
         public void RebuildComposition()
         {
-            if (_gridLayout != null)
-                _instances = InstanceComposition.Build(_gridLayout, _tileSets);
-            else if (_hierarchicalLayout != null)
+            if (_hierarchicalLayout != null)
                 _instances = InstanceComposition.Build(_hierarchicalLayout, _tileSets);
 
             Render(_instances, _tileSets);

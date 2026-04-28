@@ -20,8 +20,5 @@ namespace Truchet
         void Collapse(int nodeIndex);
 
         void SetTileByNode(int nodeIndex, int tileSetId, int tileIndex, int rotation);
-
-        bool IsUniformDepth { get; }
-        int UniformDepth { get; }
     }
 }

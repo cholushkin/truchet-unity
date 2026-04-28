@@ -26,20 +26,6 @@ namespace Truchet
         [SerializeField] protected Vector2Int _regionMax =
             new Vector2Int(int.MaxValue, int.MaxValue);
 
-        protected void GetClampedRegion(
-            IGridLayout layout,
-            out int startX,
-            out int startY,
-            out int endX,
-            out int endY)
-        {
-            startX = Mathf.Clamp(_regionMin.x, 0, layout.Width);
-            startY = Mathf.Clamp(_regionMin.y, 0, layout.Height);
-
-            endX = Mathf.Clamp(_regionMax.x, 0, layout.Width);
-            endY = Mathf.Clamp(_regionMax.y, 0, layout.Height);
-        }
-
-        public abstract void Apply(IGridLayout layout, Random rng);
+        public abstract void Apply(QuadTree  layout, Random rng);
     }
 }
