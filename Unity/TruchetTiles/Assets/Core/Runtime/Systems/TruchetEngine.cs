@@ -1,3 +1,9 @@
+// TODO ROADMAP:
+// [x] Restore structure-only generation mode
+// [x] Remove dependency on removed hierarchical API
+// [ ] Align structure restore with new snapshot system
+// [ ] Add validation for snapshot compatibility
+
 using UnityEngine;
 using System.Collections.Generic;
 using GameLib.Random;
@@ -35,18 +41,12 @@ namespace Truchet
             Generate();
         }
 
-        // =====================================================
-        // GENERATION ENTRY
-        // =====================================================
-
         [Button]
         public void Generate()
         {
             Debug.Log("--------------------------------------------------");
 
-            // --------------------------------------------------
-            // 1. FULL STATE (tiles + structure)
-            // --------------------------------------------------
+            // 1. FULL STATE
             if (StateController != null && StateController.HasState())
             {
                 Debug.Log(
@@ -59,9 +59,7 @@ namespace Truchet
                 return;
             }
 
-            // --------------------------------------------------
             // 2. STRUCTURE ONLY
-            // --------------------------------------------------
             if (StateController != null && StateController.HasStructure())
             {
                 Debug.Log(
@@ -74,9 +72,7 @@ namespace Truchet
                 return;
             }
 
-            // --------------------------------------------------
             // 3. FULL PROCEDURAL
-            // --------------------------------------------------
             Debug.Log(
                 $"[Truchet] GENERATE → FULL PROCEDURAL\n" +
                 $"Seed: {RootSeed}"
@@ -86,10 +82,6 @@ namespace Truchet
 
             GenerateQuadTree(_rng);
         }
-
-        // =====================================================
-        // DEBUG
-        // =====================================================
 
         [Button("Dump QuadTree")]
         public void DumpQuadTree()
@@ -118,10 +110,6 @@ namespace Truchet
             _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
         }
 
-        // =====================================================
-        // TILE GENERATION
-        // =====================================================
-
         public void FillTiles()
         {
             if (_quadTree == null)
@@ -130,7 +118,7 @@ namespace Truchet
             foreach (int node in _quadTree.GetLeafIndices())
             {
                 var (setId, tileIndex, rot) = GetRandomTile();
-                _quadTree.SetTile(node, setId, tileIndex, rot);
+                _quadTree.SetTileByNode(node, setId, tileIndex, rot);
             }
         }
 
@@ -153,10 +141,6 @@ namespace Truchet
             return (setId, tileIndex, rot);
         }
 
-        // =====================================================
-        // GENERATION MODES
-        // =====================================================
-
         private void GenerateQuadTree(Random rng)
         {
             var map = new QuadTree(1f);
@@ -172,10 +156,6 @@ namespace Truchet
             RebuildComposition();
         }
 
-        // =====================================================
-        // INTERACTION
-        // =====================================================
-
         public void ModifyAtUV(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
             if (_quadTree != null)
@@ -187,7 +167,7 @@ namespace Truchet
         private (int, int, int) SetRandomNode(int nodeIndex)
         {
             var (setId, tileIndex, rot) = GetRandomTile();
-            _quadTree.SetTile(nodeIndex, setId, tileIndex, rot);
+            _quadTree.SetTileByNode(nodeIndex, setId, tileIndex, rot);
 
             Debug.Log($"RND TILE: TS:{setId}:{tileIndex}:{rot}");
 
@@ -232,7 +212,7 @@ namespace Truchet
                 }
 
                 case TileInteractionController.InteractionMode.Erase:
-                    _quadTree.SetTile(nodeIndex, -1, -1, 0);
+                    _quadTree.SetTileByNode(nodeIndex, -1, -1, 0);
                     break;
 
                 case TileInteractionController.InteractionMode.Turn:
@@ -241,15 +221,11 @@ namespace Truchet
                     if (!node.IsLeaf) return;
 
                     int newRot = (node.Rotation + 1) & 3;
-                    _quadTree.SetTile(nodeIndex, node.TileSetId, node.TileIndex, newRot);
+                    _quadTree.SetTileByNode(nodeIndex, node.TileSetId, node.TileIndex, newRot);
                     break;
                 }
             }
         }
-
-        // =====================================================
-        // COMPOSITION
-        // =====================================================
 
         public void RebuildComposition()
         {
@@ -266,10 +242,6 @@ namespace Truchet
             if (_overlay != null)
                 _overlay.SetData(instances);
         }
-
-        // =====================================================
-        // MODIFIERS
-        // =====================================================
 
         private (TileSet[], LayoutModifier[]) CollectModifiers()
         {

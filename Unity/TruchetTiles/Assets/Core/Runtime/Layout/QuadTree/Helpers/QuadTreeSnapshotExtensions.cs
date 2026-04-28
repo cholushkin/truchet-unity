@@ -1,4 +1,12 @@
+// TODO ROADMAP:
+// [x] Use internal QuadTree access for reconstruction
+// [x] Remove fake rebuild logic
+// [x] Restore allocator state
+// [ ] Add validation for corrupted snapshots
+// [ ] Add versioning support
+
 using System;
+using System.Collections.Generic;
 
 namespace Truchet
 {
@@ -10,80 +18,135 @@ namespace Truchet
 
         public static QuadTreeStructureSnapshot CreateStructureSnapshot(this QuadTree quad)
         {
-            if (quad == null)
-                throw new Exception("QuadTree is null");
-
             int count = quad.NodeCount;
 
-            var snapshot = new QuadTreeStructureSnapshot
-            {
-                RootSize = quad.RootSize,
-                NodeCount = count,
-                Nodes = new int[count]
-            };
+            var nodes = new int[count * 8];
 
             for (int i = 0; i < count; i++)
             {
-                snapshot.Nodes[i] = quad.Nodes[i].Pack();
+                var n = quad.GetNode(i);
+
+                int o = i * 8;
+
+                nodes[o + 0] = BitConverter.SingleToInt32Bits(n.X);
+                nodes[o + 1] = BitConverter.SingleToInt32Bits(n.Y);
+                nodes[o + 2] = BitConverter.SingleToInt32Bits(n.Size);
+                nodes[o + 3] = n.Level;
+                nodes[o + 4] = n.IsLeaf ? 1 : 0;
+                nodes[o + 5] = n.ChildIndex;
+                nodes[o + 6] = n.ParentIndex;
+                nodes[o + 7] = n.IsActive ? 1 : 0;
             }
 
-            return snapshot;
+            return new QuadTreeStructureSnapshot
+            {
+                RootSize = 1f,
+                NodeCount = count,
+                Nodes = nodes
+            };
         }
 
         public static QuadTreeTileSnapshot CreateTileSnapshot(this QuadTree quad)
         {
-            if (quad == null)
-                throw new Exception("QuadTree is null");
-
             int count = quad.NodeCount;
 
-            var snapshot = new QuadTreeTileSnapshot
+            var data = new int[count * 3];
+
+            for (int i = 0; i < count; i++)
+            {
+                var n = quad.GetNode(i);
+
+                int o = i * 3;
+
+                data[o + 0] = n.TileSetId;
+                data[o + 1] = n.TileIndex;
+                data[o + 2] = n.Rotation;
+            }
+
+            return new QuadTreeTileSnapshot
             {
                 NodeCount = count,
-                TileIds = new byte[count]
+                TileIds = IntArrayToByteArray(data)
             };
-
-            Array.Copy(quad.TileIds, snapshot.TileIds, count);
-
-            return snapshot;
         }
 
         // ============================================================
         // APPLY
         // ============================================================
 
-        public static void ApplyStructureSnapshot(this QuadTree quad, QuadTreeStructureSnapshot snapshot)
+        public static void ApplyStructureSnapshot(
+            this QuadTree quad,
+            QuadTreeStructureSnapshot snapshot)
         {
-            if (quad == null)
-                throw new Exception("QuadTree is null");
+            int count = snapshot.NodeCount;
+            var raw = snapshot.Nodes;
 
-            if (snapshot.Nodes == null)
-                throw new Exception("Snapshot nodes are null");
+            quad.ClearInternal();
 
-            // Rebuild nodes array
-            quad.Clear();
+            var nodes = quad.Nodes;
+            var free = quad.FreeBlocks;
 
-            quad.SetRootSize(snapshot.RootSize);
-            quad.Resize(snapshot.NodeCount);
+            nodes.Capacity = count;
 
-            for (int i = 0; i < snapshot.NodeCount; i++)
+            for (int i = 0; i < count; i++)
             {
-                quad.Nodes[i] = QuadNode.Unpack(snapshot.Nodes[i]);
+                int o = i * 8;
+
+                nodes.Add(new QuadTree.QuadNode
+                {
+                    X = BitConverter.Int32BitsToSingle(raw[o + 0]),
+                    Y = BitConverter.Int32BitsToSingle(raw[o + 1]),
+                    Size = BitConverter.Int32BitsToSingle(raw[o + 2]),
+                    Level = raw[o + 3],
+                    IsLeaf = raw[o + 4] == 1,
+                    ChildIndex = raw[o + 5],
+                    ParentIndex = raw[o + 6],
+                    IsActive = raw[o + 7] == 1
+                });
+            }
+
+            // rebuild free blocks (aligned by 4)
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                if (!nodes[i].IsActive && i % 4 == 0)
+                    free.Push(i);
             }
         }
 
-        public static void ApplyTileSnapshot(this QuadTree quad, QuadTreeTileSnapshot snapshot)
+        public static void ApplyTileSnapshot(
+            this QuadTree quad,
+            QuadTreeTileSnapshot snapshot)
         {
-            if (quad == null)
-                throw new Exception("QuadTree is null");
+            int[] data = ByteArrayToIntArray(snapshot.TileIds);
 
-            if (snapshot.TileIds == null)
-                throw new Exception("Tile snapshot is null");
+            for (int i = 0; i < snapshot.NodeCount; i++)
+            {
+                int o = i * 3;
 
-            if (snapshot.NodeCount != quad.NodeCount)
-                throw new Exception("Tile snapshot does not match QuadTree node count");
+                quad.SetTileByNode(
+                    i,
+                    data[o + 0],
+                    data[o + 1],
+                    data[o + 2]);
+            }
+        }
 
-            Array.Copy(snapshot.TileIds, quad.TileIds, snapshot.NodeCount);
+        // ============================================================
+        // HELPERS
+        // ============================================================
+
+        private static byte[] IntArrayToByteArray(int[] data)
+        {
+            byte[] bytes = new byte[data.Length * 4];
+            Buffer.BlockCopy(data, 0, bytes, 0, bytes.Length);
+            return bytes;
+        }
+
+        private static int[] ByteArrayToIntArray(byte[] bytes)
+        {
+            int[] data = new int[bytes.Length / 4];
+            Buffer.BlockCopy(bytes, 0, data, 0, bytes.Length);
+            return data;
         }
     }
 }

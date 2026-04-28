@@ -8,6 +8,8 @@
 // [ ] Adjacency-aware constraints
 // [ ] View-dependent subdivision
 // [ ] Burst-compatible refactor
+// [ ] Add editor validation for region bounds
+// [ ] Add non-rectangular region support
 
 using GameLib.Random;
 using UnityEngine;
@@ -78,22 +80,14 @@ namespace Truchet
 
         private void ComputeSpatialRegion(QuadTree map)
         {
-            int logicalWidth = map.LogicalWidth;
-            int logicalHeight = map.LogicalHeight;
-
-            int startX = Mathf.Clamp(_regionMin.x, 0, logicalWidth);
-            int startY = Mathf.Clamp(_regionMin.y, 0, logicalHeight);
-
-            int endX = Mathf.Clamp(_regionMax.x, 0, logicalWidth);
-            int endY = Mathf.Clamp(_regionMax.y, 0, logicalHeight);
-
+            // reinterpret region as normalized domain (0..1)
             _spatialRegionMin = new Vector2(
-                (float)startX / logicalWidth,
-                (float)startY / logicalHeight);
+                Mathf.Clamp01(_regionMin.x),
+                Mathf.Clamp01(_regionMin.y));
 
             _spatialRegionMax = new Vector2(
-                (float)endX / logicalWidth,
-                (float)endY / logicalHeight);
+                Mathf.Clamp01(_regionMax.x),
+                Mathf.Clamp01(_regionMax.y));
         }
 
         // --------------------------------------------------

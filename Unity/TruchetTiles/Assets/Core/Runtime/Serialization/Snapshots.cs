@@ -30,7 +30,7 @@ namespace Truchet
     // ============================================================
 
     [Serializable]
-    public struct QuadTreeFullSnapshot
+    public struct QuadTreeSnapshot
     {
         public QuadTreeStructureSnapshot Structure;
         public QuadTreeTileSnapshot Tiles;

@@ -16,7 +16,7 @@ namespace Truchet
 {
     public class QuadTree
     {
-        private struct QuadNode
+        internal struct QuadNode
         {
             public float X;
             public float Y;
@@ -35,16 +35,11 @@ namespace Truchet
         }
 
         private readonly List<QuadNode> _nodes = new List<QuadNode>();
-
         private readonly Stack<int> _freeBlocks = new Stack<int>();
-
-        private readonly int _logicalWidth;
-        private readonly int _logicalHeight;
-
         public int NodeCount => _nodes.Count;
-        public int LogicalWidth => _logicalWidth;
-        public int LogicalHeight => _logicalHeight;
-
+        internal List<QuadNode> Nodes => _nodes;
+        internal Stack<int> FreeBlocks => _freeBlocks;
+        
         public int LeafCount
         {
             get
@@ -61,11 +56,8 @@ namespace Truchet
 
         public int FreeBlockCount => _freeBlocks.Count;
 
-        public QuadTree(float size = 1f, int logicalWidth = 8, int logicalHeight = 8)
+        public QuadTree(float size = 1f)
         {
-            _logicalWidth = logicalWidth;
-            _logicalHeight = logicalHeight;
-
             _nodes.Add(new QuadNode
             {
                 X = 0f,
@@ -130,7 +122,6 @@ namespace Truchet
                     _nodes[ci] = child;
                 }
 
-                // ✅ FIX: return whole block
                 _freeBlocks.Push(childStart);
             }
 
@@ -262,35 +253,11 @@ namespace Truchet
             if (index < 0 || index >= _nodes.Count)
                 throw new ArgumentOutOfRangeException(nameof(index));
         }
-
-        public void DebugPrintTree()
+        
+        internal void ClearInternal()
         {
-            DebugPrintNode(0, "");
-        }
-
-        private void DebugPrintNode(int index, string indent)
-        {
-            if (index < 0 || index >= _nodes.Count)
-                return;
-
-            var n = _nodes[index];
-
-            if (!n.IsActive)
-                return;
-
-            string type = n.IsLeaf ? "Leaf" : "Node";
-
-            UnityEngine.Debug.Log(
-                $"{indent}[{index}] {type} | L{n.Level} | Pos({n.X:F2},{n.Y:F2}) | Size {n.Size:F2} | Child:{n.ChildIndex} | Parent:{n.ParentIndex}"
-            );
-
-            if (!n.IsLeaf && n.ChildIndex >= 0)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    DebugPrintNode(n.ChildIndex + i, indent + "  ");
-                }
-            }
+            _nodes.Clear();
+            _freeBlocks.Clear();
         }
     }
 }

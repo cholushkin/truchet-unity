@@ -8,7 +8,7 @@ namespace Truchet
         // FULL SNAPSHOT
         // ------------------------------------------------------------
 
-        public static byte[] Serialize(QuadTreeFullSnapshot snapshot)
+        public static byte[] Serialize(QuadTreeSnapshot snapshot)
         {
             Validate(snapshot);
 
@@ -33,20 +33,29 @@ namespace Truchet
             return bytes;
         }
 
-        public static QuadTreeFullSnapshot Deserialize(byte[] bytes)
+        public static QuadTreeSnapshot Deserialize(byte[] bytes)
         {
-            QuadTreeFullSnapshot snapshot = new QuadTreeFullSnapshot();
+            if (bytes == null || bytes.Length < 4)
+                throw new Exception("Invalid snapshot data");
+
+            QuadTreeSnapshot snapshot = new QuadTreeSnapshot();
 
             int offset = 0;
 
             int structureSize = BitConverter.ToInt32(bytes, offset);
             offset += 4;
 
+            if (structureSize <= 0 || structureSize > bytes.Length - 4)
+                throw new Exception("Invalid structure size");
+
             byte[] structureBytes = new byte[structureSize];
             Buffer.BlockCopy(bytes, offset, structureBytes, 0, structureSize);
             offset += structureSize;
 
             int tileBytesLength = bytes.Length - offset;
+            if (tileBytesLength <= 0)
+                throw new Exception("Missing tile data");
+
             byte[] tileBytes = new byte[tileBytesLength];
             Buffer.BlockCopy(bytes, offset, tileBytes, 0, tileBytesLength);
 
@@ -142,16 +151,25 @@ namespace Truchet
         // VALIDATION
         // ------------------------------------------------------------
 
-        private static void Validate(QuadTreeFullSnapshot snapshot)
+        private static void Validate(QuadTreeSnapshot snapshot)
         {
-            if (snapshot.Structure.NodeCount != snapshot.Tiles.NodeCount)
-                throw new Exception("Snapshot mismatch: NodeCount differs");
+            if (snapshot.Structure.NodeCount <= 0)
+                throw new Exception("Invalid snapshot: NodeCount <= 0");
 
             if (snapshot.Structure.Nodes == null)
                 throw new Exception("Structure nodes are null");
 
             if (snapshot.Tiles.TileIds == null)
                 throw new Exception("Tile data is null");
+
+            if (snapshot.Structure.NodeCount != snapshot.Tiles.NodeCount)
+                throw new Exception("Snapshot mismatch: NodeCount differs");
+
+            if (snapshot.Structure.Nodes.Length != snapshot.Structure.NodeCount * 8)
+                throw new Exception("Invalid structure node array size");
+
+            if (snapshot.Tiles.TileIds.Length != snapshot.Tiles.NodeCount * 3 * sizeof(int))
+                throw new Exception("Invalid tile data size");
         }
     }
 }
