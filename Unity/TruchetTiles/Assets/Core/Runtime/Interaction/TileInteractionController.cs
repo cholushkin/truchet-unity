@@ -20,7 +20,7 @@ namespace Truchet
         }
 
         [SerializeField] private MonoBehaviour _pointerProviderBehaviour;
-        [SerializeField] private TruchetRuntime _runtime;
+        [SerializeField] private TruchetEngine _engine;
         [SerializeField] private InteractionMode _mode = InteractionMode.Random;
 
         [SerializeField] private bool _editingEnabled;
@@ -28,7 +28,7 @@ namespace Truchet
         private IPointerProvider _pointerProvider;
         private bool _lastEditingState;
 
-        public TruchetRuntime Runtime => _runtime;
+        public TruchetEngine Engine => _engine;
         public IPointerProvider Pointer => _pointerProvider;
         public InteractionMode Mode => _mode;
         public bool EditingEnabled => _editingEnabled;
@@ -62,7 +62,7 @@ namespace Truchet
 
         public void ApplyAtUV(Vector2 uv)
         {
-            _runtime?.ModifyAtUV(uv, _mode);
+            _engine?.ModifyAtUV(uv, _mode);
         }
 
         public void SetMode(InteractionMode mode)
@@ -82,12 +82,12 @@ namespace Truchet
         
         public void BakeState()
         {
-            _runtime?.StateController?.Capture(_runtime);
+            _engine?.StateController?.Capture(_engine);
         }
 
         public void BakeStructure()
         {
-            _runtime?.StateController?.CaptureStructure(_runtime);
+            _engine?.StateController?.CaptureStructure(_engine);
         }
     }
 }

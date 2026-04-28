@@ -10,20 +10,19 @@ namespace Truchet
         // --------------------------------------------------
 
         public static List<TileInstance> Build(
-            IHierarchicalLayout hierarchical,
+            QuadTree quad,
             TileSet[] tileSets)
         {
             List<TileInstance> instances = new List<TileInstance>();
 
-            foreach (int index in hierarchical.GetLeafIndices())
+            foreach (int index in quad.GetLeafIndices())
             {
-                var node = hierarchical.GetNode(index);
+                var node = quad.GetNode(index);
 
                 if (!node.IsActive)
                     continue;
 
                 bool isEmpty = IsEmpty(node.TileSetId, node.TileIndex);
-
                 bool isRenderable = !isEmpty && IsRenderable(node, tileSets);
 
                 bool isWinged = false;
@@ -36,7 +35,7 @@ namespace Truchet
 
                 instances.Add(new TileInstance
                 {
-                    Position = new Vector2(
+                    Position = new UnityEngine.Vector2(
                         node.X + node.Size * 0.5f,
                         node.Y + node.Size * 0.5f),
 

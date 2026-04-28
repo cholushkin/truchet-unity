@@ -14,7 +14,7 @@ using System.Collections.Generic;
 
 namespace Truchet
 {
-    public class QuadTree : IHierarchicalLayout
+    public class QuadTree
     {
         private struct QuadNode
         {

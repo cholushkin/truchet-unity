@@ -19,16 +19,16 @@ namespace Truchet
         }
 
         public List<TileInstanceGPU> BuildInstances(
-            IHierarchicalLayout layout,
+            QuadTree quad,
             TileSet[] tileSets,
             int resolution,
             Dictionary<int, int> tileSetOffsets)
         {
             List<TileInstanceGPU> instances = new List<TileInstanceGPU>();
 
-            foreach (int index in layout.GetLeafIndices())
+            foreach (int index in quad.GetLeafIndices())
             {
-                QuadNode node = layout.GetNode(index);
+                QuadNode node = quad.GetNode(index);
 
                 if (!node.IsActive)
                     continue;
@@ -38,14 +38,13 @@ namespace Truchet
 
                 float nodeSizePx = node.Size * resolution;
 
-                Vector2 center = new Vector2(
+                UnityEngine.Vector2 center = new UnityEngine.Vector2(
                     (node.X + node.Size * 0.5f) * resolution,
                     (node.Y + node.Size * 0.5f) * resolution);
 
                 float renderSize = nodeSizePx * 2f;
 
-                Matrix4x4 matrix =
-                    TileMatrixBuilder.Build(center, renderSize, node.Rotation);
+                var matrix = TileMatrixBuilder.Build(center, renderSize, node.Rotation);
 
                 int offset = tileSetOffsets[node.TileSetId];
 
