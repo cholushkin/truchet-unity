@@ -44,9 +44,6 @@ namespace Truchet
         [Button]
         public void Generate()
         {
-            Debug.Log("--------------------------------------------------");
-
-            // 1. FULL STATE
             if (StateController != null && StateController.HasState())
             {
                 Debug.Log(
@@ -54,12 +51,10 @@ namespace Truchet
                     $"Seed: {RootSeed}\n" +
                     $"Mode: Snapshot (structure + tiles)"
                 );
-
                 StateController.Apply(this);
                 return;
             }
 
-            // 2. STRUCTURE ONLY
             if (StateController != null && StateController.HasStructure())
             {
                 Debug.Log(
@@ -67,22 +62,19 @@ namespace Truchet
                     $"Seed: {RootSeed}\n" +
                     $"Mode: Baked Structure"
                 );
-
                 StateController.ApplyStructure(this);
                 return;
             }
 
-            // 3. FULL PROCEDURAL
             Debug.Log(
                 $"[Truchet] GENERATE → FULL PROCEDURAL\n" +
                 $"Seed: {RootSeed}"
             );
-
             _rng = RandomHelper.CreateStatefulRandomNumberGenerator(ref RootSeed);
 
             GenerateQuadTree(_rng);
         }
-
+        
         [Button("Dump QuadTree")]
         public void DumpQuadTree()
         {
@@ -115,6 +107,8 @@ namespace Truchet
             if (_quadTree == null)
                 return;
 
+            EnsureTileSets();
+
             foreach (int node in _quadTree.GetLeafIndices())
             {
                 var (setId, tileIndex, rot) = GetRandomTile();
@@ -129,6 +123,9 @@ namespace Truchet
 
         private (int setId, int tileIndex, int rot) GetRandomTile()
         {
+            if (_tileSets == null || _tileSets.Length == 0)
+                return (0, 0, 0);
+
             int setId = _rng.Range(0, _tileSets.Length);
             var set = _tileSets[setId];
 
@@ -158,6 +155,8 @@ namespace Truchet
 
         public void ModifyAtUV(Vector2 uv, TileInteractionController.InteractionMode mode)
         {
+            EnsureTileSets();
+
             if (_quadTree != null)
                 ModifyQuadTree(uv, mode);
 
@@ -168,9 +167,6 @@ namespace Truchet
         {
             var (setId, tileIndex, rot) = GetRandomTile();
             _quadTree.SetTileByNode(nodeIndex, setId, tileIndex, rot);
-
-            Debug.Log($"RND TILE: TS:{setId}:{tileIndex}:{rot}");
-
             return (setId, tileIndex, rot);
         }
 
@@ -229,6 +225,8 @@ namespace Truchet
 
         public void RebuildComposition()
         {
+            EnsureTileSets();
+
             if (_quadTree != null)
                 _instances = InstanceComposition.Build(_quadTree, _tileSets);
 
@@ -237,10 +235,25 @@ namespace Truchet
 
         private void Render(List<TileInstance> instances, TileSet[] tileSets)
         {
-            _renderBehaviour?.Render(instances, tileSets, 1);
+            if (_renderBehaviour == null)
+                return;
+
+            if (instances == null)
+                instances = new List<TileInstance>();
+
+            _renderBehaviour.Render(instances, tileSets, 1);
 
             if (_overlay != null)
                 _overlay.SetData(instances);
+        }
+
+        private void EnsureTileSets()
+        {
+            if (_tileSets != null && _tileSets.Length > 0)
+                return;
+
+            var (tileSets, _) = CollectModifiers();
+            _tileSets = tileSets;
         }
 
         private (TileSet[], LayoutModifier[]) CollectModifiers()
