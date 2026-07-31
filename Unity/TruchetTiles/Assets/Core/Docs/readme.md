@@ -1,68 +1,54 @@
-# Truchet Core --- GPU-Driven Procedural Tile System
+# Truchet System: Architecture Overview
 
-## Overview
+## Design Principles
+- **Unidirectional Data Flow:** Layout -> Composition -> Rendering.
+- **Dependency Injection Ready:** Services are decoupled and interface-driven, preparing the system for VContainer integration.
+- **Topology Agnostic:** The core data structures do not care if the world is made of squares or triangles.
 
-Truchet Core is a modular system for procedural tile-based rendering
-designed for scalability, flexibility, and performance.
+---
 
-Core pipeline:
+## 1. Core State & Data (Model)
 
-Layout → Composition → Rendering
+### `HierarchicalTree`
+The pure data container. Holds the 1-to-4 node array and handles memory pooling (FreeBlocks).
+- **Responsibilities:** Allocation, subdivision logic, collapse logic, and state serialization.
+- **Contains:** `Node[]`, `Stack<int> FreeBlocks`.
 
-Each layer has a single responsibility and can be replaced
-independently.
+### `ITopologyStrategy`
+Defines the spatial reality of the tree (Square vs. Triangle).
+- **Implementations:** `SquareTopology`, `TriangleTopology`.
+- **Responsibilities:** Translates logical bounds to world space, resolves `FindLeafAt(UV)`, and defines rotational constraints (90° vs 120°).
 
-------------------------------------------------------------------------
+---
 
-## Architecture
+## 2. Pipeline Services (Broker/Controller)
 
-### Layout Layer
+### `LayoutGenerator`
+Handles the deterministic generation of the initial state.
+- **Responsibilities:** Initializes RNG, applies `LayoutModifier` components in a strict priority order, and guarantees reproducible results.
 
-Defines spatial structure and tile placement.
+### `CompositionService`
+The bridge between abstract nodes and renderable data.
+- **Responsibilities:** Traverses the `HierarchicalTree`, applies topology-specific transforms, resolves winged margins, and outputs an array of `TileInstanceGPU`.
 
-Implementations: - RegularGrid - QuadTree
+### `InteractionService`
+The sole owner of volatile, user-driven state changes.
+- **Responsibilities:** Translates user input (Mode, UV) into spatial queries via `ITopologyStrategy`, mutates the `HierarchicalTree`, and requests a composition rebuild.
 
-Responsibilities: - Spatial indexing - Tile storage - Structural
-transformations
+---
 
-------------------------------------------------------------------------
+## 3. Rendering (View)
 
-### Composition Layer
+### `IRenderBackend`
+Consumes `TileInstanceGPU` arrays.
+- **Implementations:** `GPUInstancedRenderBackend`, `TextureRenderBackend`.
+- **Responsibilities:** Buffer management, draw calls, and batching. Knows nothing about the tree structure.
 
-Transforms layout data into renderer-ready data.
+---
 
-Interface: ICompositionStrategy
+## 4. Authoring (Tooling)
 
-Current implementation: - InstanceComposition
-
-------------------------------------------------------------------------
-
-### Rendering Layer
-
-Responsible for drawing data produced by composition.
-
-Interface: IRenderBackend
-
-Current implementation: - GPUInstancedRenderBackend
-
-------------------------------------------------------------------------
-
-## GPU Rendering
-
--   Uses GPU instancing for large-scale rendering
--   Texture2DArray for efficient texture binding
--   Indirect draw calls for performance
-
-------------------------------------------------------------------------
-
-## Extensibility
-
-The system is designed to support: - Additional layout types -
-Alternative composition strategies - Multiple rendering backends
-
-------------------------------------------------------------------------
-
-## Summary
-
-Truchet Core provides a clean, scalable architecture for procedural tile
-rendering with strong separation of concerns.
+### `TileCooker`
+Procedural rasterization pipeline.
+- **Responsibilities:** Parses text instructions (`RCT`, `BZR`) into pixels.
+- **Extensions:** Uses `ICookGeometryStrategy` to handle square bounds or triangular bounds (with respective wing overlaps).
