@@ -11,14 +11,18 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
     public string saveDirectory = "Assets/Textures/WingedMultiScaleSDF";
     public string arrayFileName = "SDF_WingedArray.asset";
 
+    // Carlson Constants
+    private const float LineHalfThickness = 1.0f / 6.0f;
+    private const float WingRadius = 1.0f / 3.0f;
+
     [Button("Generate Pure Skeleton Array")]
     public void GenerateTextures()
     {
         if (!Directory.Exists(saveDirectory)) Directory.CreateDirectory(saveDirectory);
 
-        // Bake pure skeletons into RGFloat textures
-        Texture2D texSlash = BakeTexture(CalculateSlashSkeleton, CalculateCornerWingsSkeleton);
-        Texture2D texPlus = BakeTexture(CalculatePlusSkeleton, CalculateCornerWingsSkeleton);
+        // Bake boolean-resolved distances into RGFloat textures
+        Texture2D texSlash = BakeTexture(CalculateForegroundSlash);
+        Texture2D texPlus = BakeTexture(CalculateForegroundPlus);
 
         Texture2DArray array = new Texture2DArray(resolution, resolution, 2, TextureFormat.RGFloat, false, true)
         {
@@ -38,10 +42,10 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
 
         EditorUtility.FocusProjectWindow();
         Selection.activeObject = array;
-        Debug.Log($"<color=green><b>Pure Skeleton Array generated at {arrayPath}</b></color>");
+        Debug.Log($"<color=green><b>Baked Multi-Scale SDF Array generated at {arrayPath}</b></color>");
     }
 
-    private Texture2D BakeTexture(System.Func<Vector2, float> sdfMathMain, System.Func<Vector2, float> sdfMathCorners)
+    private Texture2D BakeTexture(System.Func<Vector2, float> foregroundMath)
     {
         Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.RGFloat, false);
 
@@ -49,62 +53,58 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
         {
             for (int x = 0; x < resolution; x++)
             {
+                // Expanded domain: Texture UV 0..1 maps to -1..1
                 float u = (x / (float)(resolution - 1)) * 2.0f - 1.0f;
                 float v = (y / (float)(resolution - 1)) * 2.0f - 1.0f;
                 Vector2 uv = new Vector2(u, v);
                 
-                // Pack Main Skeleton (R) and Wing Skeleton (G)
-                tex.SetPixel(x, y, new Color(sdfMathMain(uv), sdfMathCorners(uv), 0, 1.0f));
+                float ownershipSDF = CalculateOwnership(uv);
+                float foregroundSDF = foregroundMath(uv);
+
+                tex.SetPixel(x, y, new Color(foregroundSDF, ownershipSDF, 0, 1.0f));
             }
         }
         tex.Apply();
         return tex;
     }
 
-    // --- PURE SKELETON MATH (No thickness subtracted here!) ---
+    // --- BAKED SDF BOOLEAN OPERATIONS ---
 
-    private float CalculateSlashSkeleton(Vector2 uv)
+    private float CalculateForegroundSlash(Vector2 uv)
     {
-        float arc1 = SdQuarterArc(uv, new Vector2(-0.5f, 0.5f), 0.5f, 1f, -1f);
-        float arc2 = SdQuarterArc(uv, new Vector2(0.5f, -0.5f), 0.5f, -1f, 1f);
-        return Mathf.Min(arc1, arc2);
+        // Full circles bound to ownership mathematically equate to perfect corner arcs
+        float arc1 = Mathf.Abs(Vector2.Distance(uv, new Vector2(-0.5f, 0.5f)) - 0.5f) - LineHalfThickness;
+        float arc2 = Mathf.Abs(Vector2.Distance(uv, new Vector2(0.5f, -0.5f)) - 0.5f) - LineHalfThickness;
+        float unbounded = Mathf.Min(arc1, arc2);
+        
+        // Intersection (Max) with ownership prevents dangling lines
+        return Mathf.Max(unbounded, CalculateOwnership(uv));
     }
 
-    private float CalculatePlusSkeleton(Vector2 uv)
+    private float CalculateForegroundPlus(Vector2 uv)
     {
-        float hLine = SdSegment(uv, new Vector2(-0.5f, 0), new Vector2(0.5f, 0));
-        float vLine = SdSegment(uv, new Vector2(0, -0.5f), new Vector2(0, 0.5f));
-        return Mathf.Min(hLine, vLine);
+        float dX = Mathf.Abs(uv.y) - LineHalfThickness;
+        float dY = Mathf.Abs(uv.x) - LineHalfThickness;
+        float unbounded = Mathf.Min(dX, dY);
+        
+        // Intersection (Max) with ownership
+        return Mathf.Max(unbounded, CalculateOwnership(uv));
     }
 
-    private float CalculateCornerWingsSkeleton(Vector2 uv)
+    private float CalculateOwnership(Vector2 uv)
     {
-        // Pure distance to the corners. 
-        float d1 = Vector2.Distance(uv, new Vector2(-0.5f, -0.5f));
-        float d2 = Vector2.Distance(uv, new Vector2(0.5f, -0.5f));
-        float d3 = Vector2.Distance(uv, new Vector2(-0.5f, 0.5f));
-        float d4 = Vector2.Distance(uv, new Vector2(0.5f, 0.5f));
-        return Mathf.Min(Mathf.Min(d1, d2), Mathf.Min(d3, d4));
-    }
+        // 1. Core Square [-0.5, 0.5]
+        Vector2 d = new Vector2(Mathf.Abs(uv.x), Mathf.Abs(uv.y)) - new Vector2(0.5f, 0.5f);
+        float box = Mathf.Min(Mathf.Max(d.x, d.y), 0.0f) + Vector2.Max(d, Vector2.zero).magnitude;
 
-    // --- UTILITY SDF MATH ---
+        // 2. Protruding Corner Wings (Radius = 1/3)
+        float w1 = Vector2.Distance(uv, new Vector2(-0.5f, -0.5f)) - WingRadius;
+        float w2 = Vector2.Distance(uv, new Vector2(0.5f, -0.5f)) - WingRadius;
+        float w3 = Vector2.Distance(uv, new Vector2(-0.5f, 0.5f)) - WingRadius;
+        float w4 = Vector2.Distance(uv, new Vector2(0.5f, 0.5f)) - WingRadius;
+        float wings = Mathf.Min(Mathf.Min(w1, w2), Mathf.Min(w3, w4));
 
-    private float SdQuarterArc(Vector2 p, Vector2 center, float radius, float signX, float signY)
-    {
-        Vector2 rel = p - center;
-        rel.x *= signX; 
-        rel.y *= signY;
-        if (rel.x >= 0 && rel.y >= 0) return Mathf.Abs(rel.magnitude - radius);
-        float d1 = Vector2.Distance(rel, new Vector2(radius, 0));
-        float d2 = Vector2.Distance(rel, new Vector2(0, radius));
-        return Mathf.Min(d1, d2);
-    }
-
-    private float SdSegment(Vector2 p, Vector2 a, Vector2 b)
-    {
-        Vector2 pa = p - a;
-        Vector2 ba = b - a;
-        float h = Mathf.Clamp(Vector2.Dot(pa, ba) / Vector2.Dot(ba, ba), 0.0f, 1.0f);
-        return Vector2.Distance(pa, ba * h);
+        // 3. Union (Min) of Square and Protruding Wings
+        return Mathf.Min(box, wings);
     }
 }
