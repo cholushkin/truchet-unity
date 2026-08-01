@@ -31,11 +31,18 @@ Material:
     m_Ints: []
     m_Floats:
     - _BoundsThickness: 0.0159
-    - _GridScale: 4
+    - _Columns: 2
+    - _DebugMode: 0
+    - _GridScale: 8.54
+    - _IsolateLevel: 255
+    - _Rows: 2
+    - _ShowBounds: 1
     - _ShowGrid: 1
     - _SubdivisionChance: 0.6
     - _Thickness: 0.166666
+    - _TileCount: 2
     m_Colors:
+    - _BoundsColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     - _ColorBg: {r: 0, g: 0, b: 0, a: 1}
     - _ColorTile1: {r: 0.1470866, g: 0.42259997, b: 0.6981132, a: 1}
     - _ColorTile2: {r: 0.8, g: 0.8, b: 0.8, a: 1}

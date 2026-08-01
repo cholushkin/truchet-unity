@@ -53,7 +53,6 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
         {
             for (int x = 0; x < resolution; x++)
             {
-                // Expanded domain: Texture UV 0..1 maps to -1..1
                 float u = (x / (float)(resolution - 1)) * 2.0f - 1.0f;
                 float v = (y / (float)(resolution - 1)) * 2.0f - 1.0f;
                 Vector2 uv = new Vector2(u, v);
@@ -70,15 +69,54 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
 
     // --- BAKED SDF BOOLEAN OPERATIONS ---
 
+    private float CalculateBox(Vector2 uv)
+    {
+        Vector2 d = new Vector2(Mathf.Abs(uv.x), Mathf.Abs(uv.y)) - new Vector2(0.5f, 0.5f);
+        return Mathf.Min(Mathf.Max(d.x, d.y), 0.0f) + Vector2.Max(d, Vector2.zero).magnitude;
+    }
+
+    private float CalculateCaps(Vector2 uv)
+    {
+        float capN = Vector2.Distance(uv, new Vector2(0.0f, 0.5f)) - LineHalfThickness;
+        float capS = Vector2.Distance(uv, new Vector2(0.0f, -0.5f)) - LineHalfThickness;
+        float capE = Vector2.Distance(uv, new Vector2(0.5f, 0.0f)) - LineHalfThickness;
+        float capW = Vector2.Distance(uv, new Vector2(-0.5f, 0.0f)) - LineHalfThickness;
+        
+        return Mathf.Min(Mathf.Min(capN, capS), Mathf.Min(capE, capW));
+    }
+
+    private float CalculateOwnership(Vector2 uv)
+    {
+        float box = CalculateBox(uv);
+
+        // 1. Protruding Wings located at the CORNERS
+        float w1 = Vector2.Distance(uv, new Vector2(-0.5f, -0.5f)) - WingRadius;
+        float w2 = Vector2.Distance(uv, new Vector2(0.5f, -0.5f)) - WingRadius;
+        float w3 = Vector2.Distance(uv, new Vector2(-0.5f, 0.5f)) - WingRadius;
+        float w4 = Vector2.Distance(uv, new Vector2(0.5f, 0.5f)) - WingRadius;
+        float wings = Mathf.Min(Mathf.Min(w1, w2), Mathf.Min(w3, w4));
+
+        // 2. Protruding Caps located at the EDGE MIDPOINTS
+        float caps = CalculateCaps(uv);
+
+        // 3. Union (Min) of Box, Wings, AND Caps
+        return Mathf.Min(box, Mathf.Min(wings, caps));
+    }
+
     private float CalculateForegroundSlash(Vector2 uv)
     {
-        // Full circles bound to ownership mathematically equate to perfect corner arcs
         float arc1 = Mathf.Abs(Vector2.Distance(uv, new Vector2(-0.5f, 0.5f)) - 0.5f) - LineHalfThickness;
         float arc2 = Mathf.Abs(Vector2.Distance(uv, new Vector2(0.5f, -0.5f)) - 0.5f) - LineHalfThickness;
         float unbounded = Mathf.Min(arc1, arc2);
         
-        // Intersection (Max) with ownership prevents dangling lines
-        return Mathf.Max(unbounded, CalculateOwnership(uv));
+        // Intersect (Max) with core box to slice the arc perfectly flat at the edges
+        float boundedLine = Mathf.Max(unbounded, CalculateBox(uv));
+
+        // Union (Min) with semicircular caps protruding from the edges
+        float foregroundWithEars = Mathf.Min(boundedLine, CalculateCaps(uv));
+
+        // Final intersection with ownership (which now safely encompasses the ears)
+        return Mathf.Max(foregroundWithEars, CalculateOwnership(uv));
     }
 
     private float CalculateForegroundPlus(Vector2 uv)
@@ -87,24 +125,13 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
         float dY = Mathf.Abs(uv.x) - LineHalfThickness;
         float unbounded = Mathf.Min(dX, dY);
         
-        // Intersection (Max) with ownership
-        return Mathf.Max(unbounded, CalculateOwnership(uv));
-    }
+        // Intersect (Max) with core box
+        float boundedLine = Mathf.Max(unbounded, CalculateBox(uv));
 
-    private float CalculateOwnership(Vector2 uv)
-    {
-        // 1. Core Square [-0.5, 0.5]
-        Vector2 d = new Vector2(Mathf.Abs(uv.x), Mathf.Abs(uv.y)) - new Vector2(0.5f, 0.5f);
-        float box = Mathf.Min(Mathf.Max(d.x, d.y), 0.0f) + Vector2.Max(d, Vector2.zero).magnitude;
+        // Union (Min) with semicircular caps
+        float foregroundWithEars = Mathf.Min(boundedLine, CalculateCaps(uv));
 
-        // 2. Protruding Corner Wings (Radius = 1/3)
-        float w1 = Vector2.Distance(uv, new Vector2(-0.5f, -0.5f)) - WingRadius;
-        float w2 = Vector2.Distance(uv, new Vector2(0.5f, -0.5f)) - WingRadius;
-        float w3 = Vector2.Distance(uv, new Vector2(-0.5f, 0.5f)) - WingRadius;
-        float w4 = Vector2.Distance(uv, new Vector2(0.5f, 0.5f)) - WingRadius;
-        float wings = Mathf.Min(Mathf.Min(w1, w2), Mathf.Min(w3, w4));
-
-        // 3. Union (Min) of Square and Protruding Wings
-        return Mathf.Min(box, wings);
+        // Final intersection with ownership
+        return Mathf.Max(foregroundWithEars, CalculateOwnership(uv));
     }
 }

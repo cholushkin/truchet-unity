@@ -13,6 +13,9 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
         
         [Header(Debug)]
         [Enum(None,0, TileID,1, Ownership,2, Foreground,3, Quadtree,4, Orientation,5, NeighborSource,6)] _DebugMode("Debug Mode", Float) = 0
+        [Enum(AllLevels, 255, Level_0, 0, Level_1, 1, Level_2, 2)] _IsolateLevel("Isolate Scale Layer", Float) = 255
+        [Toggle] _ShowGrid("Show Grid Overlay", Float) = 0
+        _GridColor("Grid Color", Color) = (1.0, 1.0, 0.0, 0.5)
     }
     SubShader
     {
@@ -52,6 +55,9 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
             float4 _ColorTile1;
             float4 _ColorTile2;
             float _DebugMode;
+            float _IsolateLevel;
+            float _ShowGrid;
+            float4 _GridColor;
 
             // Deterministic hash functions
             float hash12(float2 p) {
@@ -125,6 +131,12 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
                 [unroll]
                 for (int L = 0; L <= 2; L++) 
                 {
+                    // Skip excluded levels for debugging
+                    //if (_IsolateLevel >= 0.0 && L != (int)_IsolateLevel) continue;
+                    
+                    // Skip excluded levels only if a specific level (0, 1, or 2) is targeted
+                    if (_IsolateLevel >= 0.0 && _IsolateLevel < 3.0 && L != (int)_IsolateLevel) continue;
+
                     float scale = pow(2.0, L);
                     float tileSize = 1.0 / scale;
                     float2 centerID = floor(scaledUV * scale);
@@ -145,7 +157,7 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
                             // Map to Tile Local Domain [-1, 1]
                             float2 centerWorld = (neighborID + 0.5) * tileSize;
                             float2 localUV = (scaledUV - centerWorld) / tileSize; 
-                            localUV *= 2.0; 
+                            // localUV *= 2.0; (Removed to fix UV domain mismatch bug)
                             
                             // Deterministic Orientation Transform
                             float2 rotUV = localUV;
@@ -215,7 +227,27 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
                 float pixelSize = fwidth(best.fg);
                 float mask = 1.0 - smoothstep(0.0, pixelSize * 1.5, best.fg);
                 
-                return lerp(colorPaper, colorInk, mask);
+                half4 finalColor = lerp(colorPaper, colorInk, mask);
+
+                // --- GRID OVERLAY ---
+                if (_ShowGrid > 0.5 && best.level >= 0)
+                {
+                    // Map back to the local tile space of the victorious scale layer
+                    float2 tileUV = frac(scaledUV * pow(2.0, best.level));
+                    
+                    // Distance to the nearest edge (ranges from 0.0 at edge to 0.5 at center)
+                    float2 distToEdge = min(tileUV, 1.0 - tileUV);
+                    float minEdge = min(distToEdge.x, distToEdge.y);
+                    
+                    // Screen-space antialiased line
+                    float gridThickness = fwidth(minEdge) * 1.5;
+                    float gridMask = 1.0 - smoothstep(0.0, gridThickness, minEdge);
+                    
+                    // Composite the grid on top
+                    finalColor = lerp(finalColor, _GridColor, gridMask * _GridColor.a);
+                }
+
+                return finalColor;
             }
             ENDHLSL
         }
