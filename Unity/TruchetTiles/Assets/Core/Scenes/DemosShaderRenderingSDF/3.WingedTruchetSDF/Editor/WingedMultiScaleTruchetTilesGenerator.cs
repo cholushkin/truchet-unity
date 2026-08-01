@@ -92,10 +92,8 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
         float w4 = Vector2.Distance(uv, new Vector2(0.5f, 0.5f)) - WingRadius;
         float wings = Mathf.Min(Mathf.Min(w1, w2), Mathf.Min(w3, w4));
 
-        // Inflate ownership caps by an epsilon (e.g., 0.01f) to prevent SDF boundary coincidence
-        float ownershipCaps = CalculateCaps(uv) + 0.05f;
-    
-        return Mathf.Min(box, Mathf.Min(wings, ownershipCaps));
+        // Caps are strictly foreground geometry and do not belong in the ownership domain.
+        return Mathf.Min(box, wings);
     }
 
     private float CalculateForegroundSlash(Vector2 uv)

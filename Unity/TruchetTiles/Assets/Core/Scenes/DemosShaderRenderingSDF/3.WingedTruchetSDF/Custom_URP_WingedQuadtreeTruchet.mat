@@ -32,12 +32,12 @@ Material:
     - _BoundsThickness: 0.0159
     - _Columns: 2
     - _DebugMode: 0
-    - _GridScale: 7.11
+    - _GridScale: 7
     - _IsolateLevel: 255
     - _Rows: 2
     - _ShowBounds: 1
     - _ShowGrid: 0
-    - _SubdivisionChance: 0.332
+    - _SubdivisionChance: 0.34
     - _Thickness: 0.166666
     - _TileCount: 2
     m_Colors:
