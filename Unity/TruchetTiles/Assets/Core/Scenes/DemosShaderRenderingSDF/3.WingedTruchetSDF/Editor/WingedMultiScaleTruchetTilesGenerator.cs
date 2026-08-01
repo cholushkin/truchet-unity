@@ -11,7 +11,6 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
     public string saveDirectory = "Assets/Textures/WingedMultiScaleSDF";
     public string arrayFileName = "SDF_WingedArray.asset";
 
-    // Carlson Constants
     private const float LineHalfThickness = 1.0f / 6.0f;
     private const float WingRadius = 1.0f / 3.0f;
 
@@ -20,7 +19,6 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
     {
         if (!Directory.Exists(saveDirectory)) Directory.CreateDirectory(saveDirectory);
 
-        // Bake boolean-resolved distances into RGFloat textures
         Texture2D texSlash = BakeTexture(CalculateForegroundSlash);
         Texture2D texPlus = BakeTexture(CalculateForegroundPlus);
 
@@ -48,6 +46,7 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
     private Texture2D BakeTexture(System.Func<Vector2, float> foregroundMath)
     {
         Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.RGFloat, false);
+        
 
         for (int y = 0; y < resolution; y++)
         {
@@ -66,8 +65,6 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
         tex.Apply();
         return tex;
     }
-
-    // --- BAKED SDF BOOLEAN OPERATIONS ---
 
     private float CalculateBox(Vector2 uv)
     {
@@ -89,18 +86,16 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
     {
         float box = CalculateBox(uv);
 
-        // 1. Protruding Wings located at the CORNERS
         float w1 = Vector2.Distance(uv, new Vector2(-0.5f, -0.5f)) - WingRadius;
         float w2 = Vector2.Distance(uv, new Vector2(0.5f, -0.5f)) - WingRadius;
         float w3 = Vector2.Distance(uv, new Vector2(-0.5f, 0.5f)) - WingRadius;
         float w4 = Vector2.Distance(uv, new Vector2(0.5f, 0.5f)) - WingRadius;
         float wings = Mathf.Min(Mathf.Min(w1, w2), Mathf.Min(w3, w4));
 
-        // 2. Protruding Caps located at the EDGE MIDPOINTS
-        float caps = CalculateCaps(uv);
-
-        // 3. Union (Min) of Box, Wings, AND Caps
-        return Mathf.Min(box, Mathf.Min(wings, caps));
+        // Inflate ownership caps by an epsilon (e.g., 0.01f) to prevent SDF boundary coincidence
+        float ownershipCaps = CalculateCaps(uv) + 0.05f;
+    
+        return Mathf.Min(box, Mathf.Min(wings, ownershipCaps));
     }
 
     private float CalculateForegroundSlash(Vector2 uv)
@@ -109,14 +104,8 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
         float arc2 = Mathf.Abs(Vector2.Distance(uv, new Vector2(0.5f, -0.5f)) - 0.5f) - LineHalfThickness;
         float unbounded = Mathf.Min(arc1, arc2);
         
-        // Intersect (Max) with core box to slice the arc perfectly flat at the edges
         float boundedLine = Mathf.Max(unbounded, CalculateBox(uv));
-
-        // Union (Min) with semicircular caps protruding from the edges
-        float foregroundWithEars = Mathf.Min(boundedLine, CalculateCaps(uv));
-
-        // Final intersection with ownership (which now safely encompasses the ears)
-        return Mathf.Max(foregroundWithEars, CalculateOwnership(uv));
+        return Mathf.Min(boundedLine, CalculateCaps(uv));
     }
 
     private float CalculateForegroundPlus(Vector2 uv)
@@ -125,13 +114,7 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
         float dY = Mathf.Abs(uv.x) - LineHalfThickness;
         float unbounded = Mathf.Min(dX, dY);
         
-        // Intersect (Max) with core box
         float boundedLine = Mathf.Max(unbounded, CalculateBox(uv));
-
-        // Union (Min) with semicircular caps
-        float foregroundWithEars = Mathf.Min(boundedLine, CalculateCaps(uv));
-
-        // Final intersection with ownership
-        return Mathf.Max(foregroundWithEars, CalculateOwnership(uv));
+        return Mathf.Min(boundedLine, CalculateCaps(uv));
     }
 }

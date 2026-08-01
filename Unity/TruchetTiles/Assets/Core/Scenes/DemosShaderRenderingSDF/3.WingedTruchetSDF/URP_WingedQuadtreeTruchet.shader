@@ -7,9 +7,8 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
         _SubdivisionChance ("Subdivision Probability", Range(0.0, 1.0)) = 0.6
         
         [Header(MultiScale Colors)]
-        _ColorBg ("Void Color (Outside Ownership)", Color) = (1.0, 0.0, 1.0, 1.0)
-        _ColorTile1 ("Primary Color", Color) = (0.2, 0.5, 0.9, 1.0) 
-        _ColorTile2 ("Secondary Color", Color) = (0.05, 0.05, 0.05, 1.0) 
+        _ColorTile1 ("Primary Color (Ink)", Color) = (0.2, 0.5, 0.9, 1.0) 
+        _ColorTile2 ("Secondary Color (Paper)", Color) = (0.8, 0.8, 0.8, 1.0) 
         
         [Header(Debug)]
         [Enum(None,0, TileID,1, Ownership,2, Foreground,3, Quadtree,4, Orientation,5, NeighborSource,6)] _DebugMode("Debug Mode", Float) = 0
@@ -51,7 +50,6 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
             float _GridScale;
             float _SubdivisionChance;
             
-            float4 _ColorBg;
             float4 _ColorTile1;
             float4 _ColorTile2;
             float _DebugMode;
@@ -59,7 +57,6 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
             float _ShowGrid;
             float4 _GridColor;
 
-            // Deterministic hash functions
             float hash12(float2 p) {
                 float3 p3 = frac(float3(p.xyx) * 0.1031);
                 p3 += dot(p3, p3.yzx + 33.33);
@@ -71,8 +68,6 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
                 p3 += dot(p3, p3.yxz + 33.33);
                 return frac((p3.xxy + p3.yzz) * p3.zyx);
             }
-
-            // --- CANONICAL IDENTIFIER LOGIC ---
 
             bool isSubdivided(float2 id, int level) {
                 if (level >= 2) return false;
@@ -100,16 +95,6 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
                 return (uint)(hash12(id + level * 13.37 + 55.55) * 4.0);
             }
 
-            struct Candidate {
-                float fg;
-                float own;
-                int level;
-                float2 id;
-                uint shape;
-                uint rot;
-                int parity;
-            };
-
             Varyings vert(Attributes input)
             {
                 Varyings output;
@@ -122,24 +107,26 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
             {
                 float2 scaledUV = input.uv * _GridScale;
                 
-                Candidate best;
-                best.own = 1000.0;
-                best.fg = 1000.0;
-                best.level = -1;
+                float d[3] = {1000.0, 1000.0, 1000.0};  // Foreground
+                float d2[3] = {1000.0, 1000.0, 1000.0}; // Ownership
+                
+                float bestLevel = -1.0;
+                float2 bestID = 0;
+                uint bestRot = 0;
 
-                // --- QUADTREE NEIGHBOR EVALUATION ---
                 [unroll]
                 for (int L = 0; L <= 2; L++) 
                 {
-                    // Skip excluded levels for debugging
-                    //if (_IsolateLevel >= 0.0 && L != (int)_IsolateLevel) continue;
-                    
-                    // Skip excluded levels only if a specific level (0, 1, or 2) is targeted
                     if (_IsolateLevel >= 0.0 && _IsolateLevel < 3.0 && L != (int)_IsolateLevel) continue;
 
                     float scale = pow(2.0, L);
                     float tileSize = 1.0 / scale;
                     float2 centerID = floor(scaledUV * scale);
+                    
+                    float layerFg = 1000.0;
+                    float layerOwn = 1000.0;
+                    float2 layerID = centerID;
+                    uint layerRot = 0;
                     
                     [unroll]
                     for (int y = -1; y <= 1; y++) 
@@ -154,12 +141,9 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
                             uint shape = getShape(neighborID, L);
                             uint rot = getRotation(neighborID, L);
                             
-                            // Map to Tile Local Domain [-1, 1]
                             float2 centerWorld = (neighborID + 0.5) * tileSize;
                             float2 localUV = (scaledUV - centerWorld) / tileSize; 
-                            // localUV *= 2.0; (Removed to fix UV domain mismatch bug)
                             
-                            // Deterministic Orientation Transform
                             float2 rotUV = localUV;
                             if (rot == 1) rotUV = float2(localUV.y, -localUV.x);
                             else if (rot == 2) rotUV = float2(-localUV.x, -localUV.y);
@@ -168,82 +152,64 @@ Shader "Custom/URP_WingedQuadtreeTruchet"
                             float2 texUV = rotUV * 0.5 + 0.5;
                             float2 sdfs = SAMPLE_TEXTURE2D_ARRAY_LOD(_ShapeMapArray, sampler_ShapeMapArray, texUV, shape, 0).rg;
                             
-                            // Convert back to global coordinates
-                            float worldFg = sdfs.r * tileSize;
-                            float worldOwn = sdfs.g * tileSize;
-                            
-                            // --- OWNERSHIP COMPOSITING ---
-                            bool is_better = false;
-                            if (worldOwn <= 0.0) 
+                            float ownDist = sdfs.g * tileSize;
+                            float fgDist = sdfs.r * tileSize;
+
+                            if (ownDist < layerOwn) 
                             {
-                                if (best.own > 0.0) {
-                                    is_better = true; // Claim empty space
-                                } else {
-                                    // Finer level overrides coarser parent ownership completely
-                                    if (L > best.level) is_better = true;
-                                    else if (L == best.level && worldOwn < best.own) is_better = true;
-                                }
-                            } 
-                            else if (best.own > 0.0 && worldOwn < best.own) 
-                            {
-                                // Track closest in case we are in unbounded void
-                                is_better = true;
+                                layerOwn = ownDist;
+                                layerID = neighborID;
+                                layerRot = rot;
                             }
-                            
-                            // Coupled Replacement
-                            if (is_better) 
-                            {
-                                best.fg = worldFg;
-                                best.own = worldOwn;
-                                best.level = L;
-                                best.id = neighborID;
-                                best.shape = shape;
-                                best.rot = rot;
-                                best.parity = L % 2;
-                            }
+                            layerFg = min(layerFg, fgDist);
                         }
+                    }
+                    
+                    d[L] = layerFg;
+                    d2[L] = layerOwn;
+                    
+                    if (layerOwn <= 0.0) 
+                    {
+                        bestLevel = L;
+                        bestID = layerID;
+                        bestRot = layerRot;
                     }
                 }
 
+                // --- TOPOLOGICAL CSG COMPOSITING ---
+                float globalSDF = -d[0];
+                globalSDF = max(d2[0], globalSDF);
+                globalSDF = min(max(globalSDF, -d2[1]), d[1]);
+                globalSDF = max(min(globalSDF, d2[2]), -d[2]);
+                
                 // --- DEBUG VISUALIZATIONS ---
-                if (_DebugMode == 1) return half4(hash33(float3(best.id.x, best.id.y, best.level)), 1.0);
-                if (_DebugMode == 2) return half4(best.own < 0 ? float3(0.1, 0.5, 0.8) : float3(0.9, 0.2, 0.2), 1.0) * (1.0 - exp(-20.0 * abs(best.own)));
-                if (_DebugMode == 3) return half4(best.fg < 0 ? float3(0.1, 0.8, 0.3) : float3(0.8, 0.1, 0.3), 1.0) * (1.0 - exp(-20.0 * abs(best.fg)));
-                if (_DebugMode == 4) return half4(best.level == 0 ? float3(1,0,0) : (best.level == 1 ? float3(0,1,0) : float3(0,0,1)), 1.0);
-                if (_DebugMode == 5) return half4(best.rot == 0 ? float3(1,1,1) : (best.rot == 1 ? float3(1,0,0) : (best.rot == 2 ? float3(0,1,0) : float3(0,0,1))), 1.0);
+                if (_DebugMode == 1) return half4(hash33(float3(bestID.x, bestID.y, bestLevel)), 1.0);
+                if (_DebugMode == 3) return half4(globalSDF < 0 ? float3(0.1, 0.8, 0.3) : float3(0.8, 0.1, 0.3), 1.0) * (1.0 - exp(-20.0 * abs(globalSDF)));
+                if (_DebugMode == 4) return half4(bestLevel == 0 ? float3(1,0,0) : (bestLevel == 1 ? float3(0,1,0) : float3(0,0,1)), 1.0);
+                if (_DebugMode == 5) return half4(bestRot == 0 ? float3(1,1,1) : (bestRot == 1 ? float3(1,0,0) : (bestRot == 2 ? float3(0,1,0) : float3(0,0,1))), 1.0);
                 if (_DebugMode == 6) 
                 {
-                    float2 centerWorld = (best.id + 0.5) / pow(2.0, best.level);
+                    float2 centerWorld = (bestID + 0.5) / pow(2.0, max(bestLevel, 0.0));
                     float2 delta = centerWorld - scaledUV;
                     return half4(float3(delta.x * 2.0 + 0.5, delta.y * 2.0 + 0.5, 0.5), 1.0);
                 }
 
                 // --- FINAL RASTERIZATION ---
-                if (best.own > 0.0) return _ColorBg; // Outside all tiles
-
-                float4 colorInk = (best.parity == 0) ? _ColorTile1 : _ColorTile2;
-                float4 colorPaper = (best.parity == 0) ? _ColorTile2 : _ColorTile1;
+                float pixelSize = fwidth(scaledUV.x) * 1.5;
                 
-                float pixelSize = fwidth(best.fg);
-                float mask = 1.0 - smoothstep(0.0, pixelSize * 1.5, best.fg);
-                
-                half4 finalColor = lerp(colorPaper, colorInk, mask);
+                float shapeMask = 1.0 - smoothstep(-pixelSize, pixelSize, globalSDF);
+                half4 finalColor = lerp(_ColorTile1, _ColorTile2, shapeMask);
 
                 // --- GRID OVERLAY ---
-                if (_ShowGrid > 0.5 && best.level >= 0)
+                if (_ShowGrid > 0.5 && bestLevel >= 0.0)
                 {
-                    // Map back to the local tile space of the victorious scale layer
-                    float2 tileUV = frac(scaledUV * pow(2.0, best.level));
-                    
-                    // Distance to the nearest edge (ranges from 0.0 at edge to 0.5 at center)
+                    float2 tileUV = frac(scaledUV * pow(2.0, bestLevel));
                     float2 distToEdge = min(tileUV, 1.0 - tileUV);
                     float minEdge = min(distToEdge.x, distToEdge.y);
                     
-                    // Screen-space antialiased line
                     float gridThickness = fwidth(minEdge) * 1.5;
                     float gridMask = 1.0 - smoothstep(0.0, gridThickness, minEdge);
                     
-                    // Composite the grid on top
                     finalColor = lerp(finalColor, _GridColor, gridMask * _GridColor.a);
                 }
 
