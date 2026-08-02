@@ -25,21 +25,21 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _ShapeMapArray:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 18700000, guid: 1277a53335431be42af8674de4ee76d0, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BoundsThickness: 0.01
+    - _BoundsThickness: 0.0132
     - _Columns: 2
     - _Rows: 2
     - _ShowBounds: 1
-    - _Thickness: 0.093
+    - _Thickness: 0.166666
     - _TileCount: 2
     m_Colors:
     - _BoundsColor: {r: 1, g: 0.934939, b: 0, a: 1}
     - _ColorBg: {r: 0.85, g: 0.85, b: 0.85, a: 0}
-    - _ColorTile1: {r: 0.049999982, g: 0.049999982, b: 0.049999982, a: 1}
+    - _ColorTile1: {r: 1, g: 1, b: 1, a: 1}
     - _ColorTile2: {r: 0.29999998, g: 0.6, b: 0.9, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

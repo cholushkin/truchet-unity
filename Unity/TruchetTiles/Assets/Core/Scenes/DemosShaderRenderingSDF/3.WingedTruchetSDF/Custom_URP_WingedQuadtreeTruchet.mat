@@ -24,27 +24,27 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _ShapeMapArray:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 18700000, guid: 1277a53335431be42af8674de4ee76d0, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BoundsThickness: 0.0159
     - _Columns: 2
-    - _DebugMode: 0
-    - _GridScale: 7
+    - _DebugMode: 2
+    - _GridScale: 8.08
     - _IsolateLevel: 255
     - _Rows: 2
     - _ShowBounds: 1
     - _ShowGrid: 0
-    - _SubdivisionChance: 0.34
-    - _Thickness: 0.166666
+    - _SubdivisionChance: 0.669
+    - _Thickness: 0.013
     - _TileCount: 2
     m_Colors:
     - _BoundsColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     - _ColorBg: {r: 0, g: 0, b: 0, a: 1}
     - _ColorTile1: {r: 0.1470866, g: 0.42259997, b: 0.6981132, a: 1}
-    - _ColorTile2: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+    - _ColorTile2: {r: 0.71199995, g: 0.71199995, b: 0.71199995, a: 1}
     - _GridColor: {r: 1, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
