@@ -1,0 +1,37 @@
+{
+  "name": "com.qcat.truchet",
+  "version": "1.0.0",
+  "displayName": "Truchet Tiles",
+  "description": "Procedural GPU-driven Truchet-tile system for Unity: quadtree/regular-grid layouts, multiple rendering backends (GPU instanced, texture, UI), tile cooking pipeline and SDF shader demos.",
+  "unity": "2021.3",
+  "keywords": [
+    "truchet",
+    "procedural",
+    "tilemap",
+    "gpu-instancing",
+    "sdf"
+  ],
+  "author": {
+    "name": "Maxim Cholushkin",
+    "email": "cholushkin@gmail.com",
+    "url": "https://sites.google.com/view/cholushkinmaximcard/home"
+  },
+  "dependencies": {
+    "com.unity.inputsystem": "1.19.0"
+  },
+  "documentationUrl": "https://github.com/cholushkin/truchet-unity/blob/master/README.md",
+  "changelogUrl": "https://github.com/cholushkin/truchet-unity/blob/master/CHANGELOG.md",
+  "licensesUrl": "https://github.com/cholushkin/truchet-unity/blob/master/LICENSE",
+  "samples": [
+    {
+      "displayName": "Demos",
+      "description": "Backend demo scenes: GPU-instanced render, texture render (mesh/UI) for quadtree and regular-grid layouts.",
+      "path": "Samples~/Demos"
+    },
+    {
+      "displayName": "Demos - Shader Rendering (SDF)",
+      "description": "SDF shader-based rendering demos: simple SDF, texture-array SDF (with bake tools), winged multi-scale SDF, ShaderToy port.",
+      "path": "Samples~/DemosShaderRenderingSDF"
+    }
+  ]
+}

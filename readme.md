@@ -46,25 +46,48 @@ performance, and clean architecture.
 
 ------------------------------------------------------------------------
 
+## 📥 Installation (UPM / Git URL)
+
+In Unity: **Window → Package Manager → + → Install package from git URL…**
+
+```
+https://github.com/cholushkin/truchet-unity.git
+```
+
+### Dependencies — install first, in this order
+
+This package does **not** declare the following as versioned `package.json`
+dependencies (they are not available on a scoped registry), so install them
+manually, in order, before installing Truchet Tiles:
+
+1. **GameLib** (`com.qcat.gamelib`, used for `GameLib.Random` / `GameLib.Alg`):
+   `https://github.com/cholushkin/gamelib.git`
+2. **NaughtyAttributes** (inspector attributes, cholushkin fork/UPM branch):
+   `https://github.com/cholushkin/NaughtyAttributes.git#upm`
+
+Unity Registry dependency (resolved automatically): `com.unity.inputsystem`.
+
+------------------------------------------------------------------------
+
 ## 📦 Documentation
 
 ### Core
 
--   [Core README](./Unity/TruchetTiles/Assets/Core/Docs/readme.md)
+-   [Core README](./Documentation~/readme.md)
 
 ### Systems
 
--   [QuadTree](./Unity/TruchetTiles/Assets/Core/Docs/quadtree.md)
+-   [QuadTree](./Documentation~/quadtree.md)
 -   [Rendering
-    Architecture](./Unity/TruchetTiles/Assets/Core/Docs/rendering_architecture.md)
+    Architecture](./Documentation~/rendering_architecture.md)
 -   [Composition
-    Layer](./Unity/TruchetTiles/Assets/Core/Docs/composition_layer.md)
+    Layer](./Documentation~/composition_layer.md)
 -   [Texture Array
-    System](./Unity/TruchetTiles/Assets/Core/Docs/texture_array_system.md)
+    System](./Documentation~/texture_array_system.md)
 -   [TilePipeline
-    Runtime](./Unity/TruchetTiles/Assets/Core/Docs/tilemap_runtime.md)
+    Runtime](./Documentation~/tilemap_runtime.md)
 -   [Tile Cooking
-    Pipeline](./Unity/TruchetTiles/Assets/Core/Docs/tile_cooking_pipeline.md)
+    Pipeline](./Documentation~/tile_cooking_pipeline.md)
 
 ------------------------------------------------------------------------
 
@@ -118,7 +141,21 @@ Start here:
 
 ## 📜 License
 
-*(Add your license here)*
+MIT — see [LICENSE](./LICENSE).
+
+------------------------------------------------------------------------
+
+## 🗂 Repository layout notes
+
+The installable UPM package is the repository root (`Runtime/`, `Editor/`,
+`Samples~/`, `Documentation~/`, `package.json`). The `Unity/TruchetTiles/`
+folder is a development sandbox Unity project used while authoring this
+package; its `Assets/Core/Runtime` and `Assets/Core/Authoring` content has
+been moved out to the repo root, so that project is no longer self-contained
+on its own — reinstall this package into it (e.g. via *Install package from
+disk*) if you want to keep using it as a sandbox. `ScriptUtils` and
+`CodingConvention` are git submodules used by project tooling, not by the
+package code itself.
 
 ------------------------------------------------------------------------
 
