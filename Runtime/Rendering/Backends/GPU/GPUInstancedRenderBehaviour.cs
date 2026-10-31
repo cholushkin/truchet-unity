@@ -114,7 +114,7 @@ namespace Truchet
                         continue;
                     }
 
-                    hash = hash * 31 + set.GetInstanceID();
+                    hash = hash * 31 + set.GetEntityId().GetHashCode();
 
                     if (set.tiles == null)
                         continue;
@@ -129,10 +129,10 @@ namespace Truchet
                             continue;
                         }
 
-                        hash = hash * 31 + tile.GetInstanceID();
+                        hash = hash * 31 + tile.GetEntityId().GetHashCode();
 
                         if (tile.texture != null)
-                            hash = hash * 31 + tile.texture.GetInstanceID();
+                            hash = hash * 31 + tile.texture.GetEntityId().GetHashCode();
                     }
                 }
 
