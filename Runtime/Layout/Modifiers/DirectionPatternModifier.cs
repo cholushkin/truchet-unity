@@ -5,7 +5,6 @@
 // [ ] Add tile index strategy
 // [ ] Add connectivity awareness
 
-using NaughtyAttributes;
 using UnityEngine;
 using Random = GameLib.Random.Random;
 
@@ -13,7 +12,7 @@ namespace Truchet
 {
     public class DirectionPatternModifier : LayoutModifier
     {
-        [ResizableTextArea]
+        [TextArea]
         [SerializeField] private string _rotationPattern;
 
         public override void Apply(QuadTree layout, Random rng)

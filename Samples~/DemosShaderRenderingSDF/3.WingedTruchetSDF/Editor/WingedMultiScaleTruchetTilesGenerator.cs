@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using System.IO;
-using NaughtyAttributes;
+using Alchemy.Inspector;
 
 [CreateAssetMenu(fileName = "WingedMultiScaleTruchetTilesGenerator", menuName = "Tools/Winged MultiScale Truchet Tiles Generator")]
 public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
@@ -14,7 +14,8 @@ public class WingedMultiScaleTruchetTilesGenerator : ScriptableObject
     private const float LineHalfThickness = 1.0f / 6.0f;
     private const float WingRadius = 1.0f / 3.0f;
 
-    [Button("Generate Pure Skeleton Array")]
+    [Button]
+    [LabelText("Generate Pure Skeleton Array")]
     public void GenerateTextures()
     {
         if (!Directory.Exists(saveDirectory)) Directory.CreateDirectory(saveDirectory);

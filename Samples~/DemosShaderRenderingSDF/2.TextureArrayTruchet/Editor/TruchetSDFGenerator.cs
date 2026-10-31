@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEditor;
-using NaughtyAttributes;
+using Alchemy.Inspector;
 using System.IO;
 
 [CreateAssetMenu(fileName = "TruchetSDFGenerator", menuName = "Tools/Truchet SDF Generator")]
@@ -16,7 +16,8 @@ public class TruchetSDFGenerator : ScriptableObject
     [Header("Shape Prefix")]
     public string filePrefix = "SDF_Tile_";
 
-    [Button("Generate SDF Textures")]
+    [Button]
+    [LabelText("Generate SDF Textures")]
     public void GenerateTextures()
     {
         if (!Directory.Exists(saveDirectory))

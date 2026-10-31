@@ -7,7 +7,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using GameLib.Random;
-using NaughtyAttributes;
+using Alchemy.Inspector;
 using Random = GameLib.Random.Random;
 
 namespace Truchet
@@ -75,7 +75,8 @@ namespace Truchet
             GenerateQuadTree(_rng);
         }
         
-        [Button("Dump QuadTree")]
+        [Button]
+        [LabelText("Dump QuadTree")]
         public void DumpQuadTree()
         {
             Debug.Log("--------------------------------------------------");

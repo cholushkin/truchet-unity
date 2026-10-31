@@ -62,8 +62,8 @@ manually, in order, before installing Truchet Tiles:
 
 1. **GameLib** (`com.qcat.gamelib`, used for `GameLib.Random` / `GameLib.Alg`):
    `https://github.com/cholushkin/gamelib.git`
-2. **NaughtyAttributes** (inspector attributes, cholushkin fork/UPM branch):
-   `https://github.com/cholushkin/NaughtyAttributes.git#upm`
+2. **Alchemy** (`Alchemy.Inspector`, third-party Unity inspector-extension library by AnnulusGames):
+   `https://github.com/AnnulusGames/Alchemy.git?path=Alchemy/Assets/Alchemy`
 
 Unity Registry dependency (resolved automatically): `com.unity.inputsystem`.
 

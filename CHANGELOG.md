@@ -2,6 +2,19 @@
 
 All notable changes to this package will be documented in this file.
 
+## [1.1.1] - 2026-10-31
+
+### Changed
+- Replaced NaughtyAttributes with Alchemy. `TruchetEngine.DumpQuadTree()` and the two SDF-bake
+  sample tools now use `[Button]` + `[LabelText("...")]` (Alchemy has no single-attribute
+  equivalent of `[Button("label")]`). `Runtime/TruchetTiles.asmdef`'s reference to the
+  NaughtyAttributes assembly was swapped for `Alchemy`. Fixes `CS0246` errors for
+  `NaughtyAttributes`, `ButtonAttribute`/`Button`.
+- `DirectionPatternModifier._rotationPattern` now uses Unity's built-in `[TextArea]` instead
+  of NaughtyAttributes' `[ResizableTextArea]` (Alchemy has no resizable-text-area attribute).
+  Fixes `CS0246` for `ResizableTextAreaAttribute`/`ResizableTextArea`.
+- Removed an unused `using NaughtyAttributes;` from `TileInteractionController.cs`.
+
 ## [1.1.0] - 2026-10-31
 
 ### Changed
