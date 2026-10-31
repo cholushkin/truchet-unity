@@ -14,7 +14,7 @@ namespace Truchet
 
         private static void OnSceneGUI(SceneView sceneView)
         {
-            var controller = Object.FindObjectOfType<TileInteractionController>();
+            var controller = Object.FindAnyObjectByType<TileInteractionController>();
             if (controller == null || controller.Pointer == null)
                 return;
 
