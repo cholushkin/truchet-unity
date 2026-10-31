@@ -1,6 +1,6 @@
 {
   "name": "com.qcat.truchet",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "displayName": "Truchet Tiles",
   "description": "Procedural GPU-driven Truchet-tile system for Unity: quadtree/regular-grid layouts, multiple rendering backends (GPU instanced, texture, UI), tile cooking pipeline and SDF shader demos.",
   "unity": "2021.3",

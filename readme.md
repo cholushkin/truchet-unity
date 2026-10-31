@@ -73,21 +73,21 @@ Unity Registry dependency (resolved automatically): `com.unity.inputsystem`.
 
 ### Core
 
--   [Core README](./Documentation~/readme.md)
+-   [Core README](./Documentation/readme.md)
 
 ### Systems
 
--   [QuadTree](./Documentation~/quadtree.md)
+-   [QuadTree](./Documentation/quadtree.md)
 -   [Rendering
-    Architecture](./Documentation~/rendering_architecture.md)
+    Architecture](./Documentation/rendering_architecture.md)
 -   [Composition
-    Layer](./Documentation~/composition_layer.md)
+    Layer](./Documentation/composition_layer.md)
 -   [Texture Array
-    System](./Documentation~/texture_array_system.md)
+    System](./Documentation/texture_array_system.md)
 -   [TilePipeline
-    Runtime](./Documentation~/tilemap_runtime.md)
+    Runtime](./Documentation/tilemap_runtime.md)
 -   [Tile Cooking
-    Pipeline](./Documentation~/tile_cooking_pipeline.md)
+    Pipeline](./Documentation/tile_cooking_pipeline.md)
 
 ------------------------------------------------------------------------
 
@@ -147,15 +147,12 @@ MIT — see [LICENSE](./LICENSE).
 
 ## 🗂 Repository layout notes
 
-The installable UPM package is the repository root (`Runtime/`, `Editor/`,
-`Samples~/`, `Documentation~/`, `package.json`). The `Unity/TruchetTiles/`
-folder is a development sandbox Unity project used while authoring this
-package; its `Assets/Core/Runtime` and `Assets/Core/Authoring` content has
-been moved out to the repo root, so that project is no longer self-contained
-on its own — reinstall this package into it (e.g. via *Install package from
-disk*) if you want to keep using it as a sandbox. `ScriptUtils` and
-`CodingConvention` are git submodules used by project tooling, not by the
-package code itself.
+The repository root **is** the installable UPM package (`Runtime/`, `Editor/`,
+`Samples~/`, `Documentation/`, `package.json`) — no nested sandbox project,
+vendored libraries, or git submodules. `TileGeneratorScripts~/` holds the
+Python tooling used to author the tile texture sets under `Textures/Tiles/`;
+it is hidden from Unity's importer (`~` suffix) but kept in the repo for
+reference.
 
 ------------------------------------------------------------------------
 
